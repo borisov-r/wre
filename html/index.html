@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wireless Rotary Encoder</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            text-align: center;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #666;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .status-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            border: 2px solid #e9ecef;
+        }
+        
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .status-row:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        
+        .status-label {
+            color: #666;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        
+        .status-value {
+            color: #333;
+            font-weight: 600;
+            font-size: 18px;
+        }
+        
+        .output-indicator {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background-color: #dc3545;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            transition: background-color 0.3s, box-shadow 0.3s;
+        }
+        
+        .output-indicator.on {
+            background-color: #28a745;
+            box-shadow: 0 0 20px rgba(40, 167, 69, 0.6);
+        }
+        
+        .angle-display {
+            font-size: 48px;
+            font-weight: bold;
+            color: #667eea;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        .input-group label {
+            display: block;
+            color: #333;
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        
+        .input-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 25px;
+        }
+        
+        button {
+            padding: 14px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        
+        .connection-status {
+            text-align: center;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        
+        .connection-status.connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .connection-status.disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .help-text {
+            color: #6c757d;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎛️ Wireless Rotary Encoder</h1>
+        <p class="subtitle">ESP32 Dual-Core Control System</p>
+        
+        <div id="connectionStatus" class="connection-status disconnected">
+            ⚠️ Connecting...
+        </div>
+        
+        <div class="status-card">
+            <div class="status-row">
+                <span class="status-label">Current Angle</span>
+                <span class="status-value" id="currentAngle">0.0°</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Output Status</span>
+                <span class="output-indicator" id="outputIndicator"></span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Encoder Status</span>
+                <span class="status-value" id="encoderStatus">Stopped</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Target Progress</span>
+                <span class="status-value" id="targetProgress">-</span>
+            </div>
+        </div>
+        
+        <div class="input-group">
+            <label for="angles">Target Angles (comma-separated, in degrees)</label>
+            <input type="text" id="angles" placeholder="e.g., 45, 90.5, 135, 180" value="45, 90, 135">
+            <div class="help-text">Enter one or more target angles separated by commas</div>
+        </div>
+        
+        <div class="button-group">
+            <button class="btn-primary" onclick="setAngles()">▶️ Start</button>
+            <button class="btn-danger" onclick="stopEncoder()">⏹️ Stop</button>
+        </div>
+    </div>
+    
+    <script>
+        let updateInterval;
+        
+        function updateStatus() {
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('currentAngle').textContent = data.angle.toFixed(1) + '°';
+                    document.getElementById('encoderStatus').textContent = data.active ? 'Active' : 'Stopped';
+                    
+                    const outputIndicator = document.getElementById('outputIndicator');
+                    if (data.output_on) {
+                        outputIndicator.classList.add('on');
+                    } else {
+                        outputIndicator.classList.remove('on');
+                    }
+                    
+                    if (data.target_angles.length > 0 && data.active) {
+                        const progress = `${data.current_target_index + 1} / ${data.target_angles.length}`;
+                        const currentTarget = data.target_angles[data.current_target_index];
+                        document.getElementById('targetProgress').textContent = 
+                            `${progress} (→ ${currentTarget.toFixed(1)}°)`;
+                    } else {
+                        document.getElementById('targetProgress').textContent = '-';
+                    }
+                    
+                    // Update connection status
+                    const statusElem = document.getElementById('connectionStatus');
+                    statusElem.className = 'connection-status connected';
+                    statusElem.textContent = '✅ Connected';
+                })
+                .catch(error => {
+                    console.error('Error fetching status:', error);
+                    const statusElem = document.getElementById('connectionStatus');
+                    statusElem.className = 'connection-status disconnected';
+                    statusElem.textContent = '❌ Connection Error';
+                });
+        }
+        
+        function setAngles() {
+            const anglesInput = document.getElementById('angles').value;
+            const inputValues = anglesInput.split(',');
+            const angles = [];
+            const invalidValues = [];
+            
+            inputValues.forEach(s => {
+                const trimmed = s.trim();
+                if (trimmed === '') return;
+                const val = parseFloat(trimmed);
+                if (isNaN(val)) {
+                    invalidValues.push(trimmed);
+                } else {
+                    angles.push(val);
+                }
+            });
+            
+            if (invalidValues.length > 0) {
+                alert('Warning: The following values are invalid and will be ignored: ' + invalidValues.join(', '));
+            }
+            
+            if (angles.length === 0) {
+                alert('Please enter at least one valid angle');
+                return;
+            }
+            
+            fetch('/api/set', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ angles: angles })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Angles set successfully:', data);
+                updateStatus();
+            })
+            .catch(error => {
+                console.error('Error setting angles:', error);
+                alert('Error setting angles: ' + error);
+            });
+        }
+        
+        function stopEncoder() {
+            fetch('/api/stop', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Encoder stopped:', data);
+                updateStatus();
+            })
+            .catch(error => {
+                console.error('Error stopping encoder:', error);
+                alert('Error stopping encoder: ' + error);
+            });
+        }
+        
+        // Start polling for status updates
+        updateStatus();
+        updateInterval = setInterval(updateStatus, 200);
+        
+        // Clean up interval when page is unloaded
+        window.addEventListener('beforeunload', function() {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+            }
+        });
+    </script>
+</body>
+</html>
