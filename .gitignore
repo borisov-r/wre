@@ -169,3 +169,15 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Rust
+target/
+Cargo.lock
+**/*.rs.bk
+*.pdb
+
+# ESP-IDF
+.embuild/
+sdkconfig
+sdkconfig.old
+cfg.toml.local
