@@ -80,6 +80,8 @@ cargo run --release
 espflash flash --monitor target/xtensa-esp32-espidf/release/wre
 ```
 
+**Note:** If you encounter build errors about type mismatches (`*const i8` vs `*const u8`), make sure you have the latest version from the repository with compatible dependency versions. See [NODEMCU_SETUP.md](NODEMCU_SETUP.md) for troubleshooting.
+
 ## Usage
 1. Flash the firmware to your ESP32
 2. The device will connect to WiFi and display its IP address in the serial monitor
