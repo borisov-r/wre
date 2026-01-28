@@ -453,7 +453,7 @@ This indicates a version compatibility issue between esp-idf-svc and ESP-IDF. Th
 # For ESP-IDF v5.1.2, you need:
 # - esp-idf-svc = "0.49" or newer (not 0.48)
 # - esp-idf-hal = "0.44" or newer
-# - esp-idf-sys = "0.35" or newer
+# - esp-idf-sys = "0.34" (not 0.35)
 # - embedded-svc = "0.28" or newer
 
 # If you still see this error, clean and rebuild:
