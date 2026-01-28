@@ -3,7 +3,9 @@ Wireless Rotary Encoder
 
 ## 🚀 Quick Start
 
-**New to this project?** Check out the [Quick Start Guide](QUICKSTART.md) to get running in 15 minutes!
+**Using NodeMCU ESP32?** Follow the [NodeMCU ESP32-WROOM-32D Setup Guide](NODEMCU_SETUP.md) for detailed instructions!
+
+**Already familiar with ESP32?** Check out the [Quick Start Guide](QUICKSTART.md) to get running in 15 minutes!
 
 ## Overview
 This project implements a wireless rotary encoder control system for ESP32, rewritten in Rust with dual-core architecture for optimal performance.
@@ -19,12 +21,19 @@ This project implements a wireless rotary encoder control system for ESP32, rewr
 - **Thread-Safe**: Uses Rust's Arc and atomic types for safe cross-core communication
 
 ## Hardware Setup
-- **ESP32 Development Board**
-- **Rotary Encoder** connected to:
-  - CLK pin: GPIO 21
-  - DT pin: GPIO 22
+
+### Supported Boards
+- **NodeMCU ESP32 with ESP32-WROOM-32D** (see [detailed setup guide](NODEMCU_SETUP.md))
+- Any ESP32 development board with at least 4MB flash
+
+### Connections
+- **Rotary Encoder:**
+  - CLK pin → GPIO 21
+  - DT pin → GPIO 22
+  - VCC → 3.3V
+  - GND → Ground
   - Both pins use internal pull-up resistors
-- **Output**: GPIO 32 (can drive LED, relay, etc.)
+- **Output:** GPIO 32 (can drive LED, relay, etc.)
 
 ## Software Requirements
 1. **Rust Toolchain** with ESP32 support:
@@ -109,10 +118,20 @@ espflash flash --monitor target/xtensa-esp32-espidf/release/wre
 
 ## Documentation
 
-- **[Quick Start Guide](QUICKSTART.md)** - Get started in 15 minutes
-- **[Architecture Overview](ARCHITECTURE.md)** - System architecture and data flow diagrams
-- **[Rust Implementation Details](RUST_IMPLEMENTATION.md)** - In-depth architecture and design
-- **[Original MicroPython Code](src/main.py)** - Reference implementation
+### Getting Started
+- **[NodeMCU ESP32 Setup Guide](NODEMCU_SETUP.md)** - 📱 Complete setup for NodeMCU ESP32-WROOM-32D (Rust installation, drivers, flashing)
+- **[Quick Start Guide](QUICKSTART.md)** - ⚡ Get started in 15 minutes (for experienced users)
+- **[Deployment Guide](DEPLOYMENT.md)** - 🚀 Production deployment
+
+### Technical Documentation
+- **[Architecture Overview](ARCHITECTURE.md)** - 🏗️ System architecture and data flow diagrams
+- **[Rust Implementation Details](RUST_IMPLEMENTATION.md)** - 🦀 In-depth architecture and design
+- **[Testing Guide](TESTING.md)** - 🧪 Testing procedures and debugging
+
+### Reference
+- **[Original MicroPython Code](src/main.py)** - 📜 Reference implementation
+- **[Implementation Summary](IMPLEMENTATION_SUMMARY.md)** - 📊 Complete feature summary
+- **[Project Summary](PROJECT_SUMMARY.md)** - 📝 Visual overview
 
 ## Project Structure
 

@@ -2,9 +2,11 @@
 
 Get your Wireless Rotary Encoder running in 15 minutes!
 
+> **📱 Using NodeMCU ESP32?** For more detailed instructions including USB drivers and troubleshooting, see the [NodeMCU ESP32-WROOM-32D Setup Guide](NODEMCU_SETUP.md).
+
 ## Prerequisites
 
-- ESP32 development board
+- ESP32 development board (NodeMCU ESP32, DevKitC, etc.)
 - Rotary encoder with CLK and DT pins
 - USB cable for programming
 - Linux, macOS, or WSL on Windows
