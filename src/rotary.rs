@@ -1,4 +1,3 @@
-use esp_idf_hal::gpio::PinDriver;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 

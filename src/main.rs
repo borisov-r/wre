@@ -93,29 +93,28 @@ fn rotary_task(
     let encoder_state_isr = encoder_state.clone();
 
     // Set up interrupt handlers
+    let clk_pin_num = 21;
+    let dt_pin_num = 22;
+
     unsafe {
         clk.subscribe({
             let encoder_state = encoder_state_isr.clone();
-            let clk_ptr = clk.pin() as usize;
-            let dt_ptr = dt.pin() as usize;
             
             move || {
                 // Read both pin states
-                let clk_val = esp_idf_sys::gpio_get_level(clk_ptr as i32) != 0;
-                let dt_val = esp_idf_sys::gpio_get_level(dt_ptr as i32) != 0;
+                let clk_val = esp_idf_sys::gpio_get_level(clk_pin_num) != 0;
+                let dt_val = esp_idf_sys::gpio_get_level(dt_pin_num) != 0;
                 encoder_state.process_pins(clk_val, dt_val);
             }
         })?;
 
         dt.subscribe({
             let encoder_state = encoder_state_isr.clone();
-            let clk_ptr = clk.pin() as usize;
-            let dt_ptr = dt.pin() as usize;
             
             move || {
                 // Read both pin states
-                let clk_val = esp_idf_sys::gpio_get_level(clk_ptr as i32) != 0;
-                let dt_val = esp_idf_sys::gpio_get_level(dt_ptr as i32) != 0;
+                let clk_val = esp_idf_sys::gpio_get_level(clk_pin_num) != 0;
+                let dt_val = esp_idf_sys::gpio_get_level(dt_pin_num) != 0;
                 encoder_state.process_pins(clk_val, dt_val);
             }
         })?;

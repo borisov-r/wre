@@ -1,17 +1,22 @@
 # wre
 Wireless Rotary Encoder
 
+## 🚀 Quick Start
+
+**New to this project?** Check out the [Quick Start Guide](QUICKSTART.md) to get running in 15 minutes!
+
 ## Overview
 This project implements a wireless rotary encoder control system for ESP32, rewritten in Rust with dual-core architecture for optimal performance.
 
 ## Features
 - **Dual-Core Architecture**: 
-  - Core 0: HTTP server with WebSocket support for real-time updates
+  - Core 0: HTTP server with REST API for real-time updates
   - Core 1: Dedicated rotary encoder processing with interrupt handling
 - **Web Interface**: Beautiful, responsive UI to control and monitor the encoder
 - **Real-time Updates**: Status polling (200ms intervals) to track encoder position and output state
 - **Configurable Targets**: Set multiple target angles dynamically
 - **Output Control**: GPIO 32 output toggles when target angles are reached
+- **Thread-Safe**: Uses Rust's Arc and atomic types for safe cross-core communication
 
 ## Hardware Setup
 - **ESP32 Development Board**
@@ -101,6 +106,35 @@ espflash flash --monitor target/xtensa-esp32-espidf/release/wre
 - Uses atomic operations and Arc<Mutex<>> for thread-safe state sharing
 - Encoder state is accessible from both cores
 - Lock-free atomic types (AtomicBool, AtomicI32) for frequently accessed data
+
+## Documentation
+
+- **[Quick Start Guide](QUICKSTART.md)** - Get started in 15 minutes
+- **[Rust Implementation Details](RUST_IMPLEMENTATION.md)** - In-depth architecture and design
+- **[Original MicroPython Code](src/main.py)** - Reference implementation
+
+## Project Structure
+
+```
+wre/
+├── src/
+│   ├── main.rs          # Main application with dual-core setup
+│   ├── rotary.rs        # Rotary encoder state machine and logic
+│   ├── webserver.rs     # HTTP server and WiFi management
+│   ├── main.py          # Original MicroPython implementation (reference)
+│   └── boot.py          # MicroPython boot configuration (reference)
+├── html/
+│   └── index.html       # Web interface with real-time updates
+├── Cargo.toml           # Rust dependencies and configuration
+├── .cargo/config.toml   # ESP32 build configuration
+├── build.rs             # ESP-IDF build script
+├── sdkconfig.defaults   # ESP32 SDK configuration
+└── rust-toolchain.toml  # Rust toolchain specification
+```
+
+## License
+
+See [LICENSE](LICENSE) file for details.
 
 ## Original MicroPython Code
 The original MicroPython implementation can be found in the `src/` directory for reference.
