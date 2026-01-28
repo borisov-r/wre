@@ -436,6 +436,33 @@ cargo clean
 cargo build --release
 ```
 
+#### Error: Type mismatch errors (*const u8 vs *const i8) in esp-idf-svc
+If you see errors like:
+```
+error[E0308]: mismatched types
+   --> esp-idf-svc-X.XX.X/src/tls.rs:212:36
+    |
+212 |  rcfg.alpn_protos = bufs.alpn_protos.as_mut_ptr();
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `*mut *const u8`, found `*mut *const i8`
+```
+
+This indicates a version compatibility issue between esp-idf-svc and ESP-IDF. The fix is to ensure you're using compatible versions:
+
+```bash
+# The Cargo.toml in this project already has the correct versions
+# For ESP-IDF v5.1.2, you need:
+# - esp-idf-svc = "0.49" or newer (not 0.48)
+# - esp-idf-hal = "0.44" or newer
+# - esp-idf-sys = "0.35" or newer
+# - embedded-svc = "0.28" or newer
+
+# If you still see this error, clean and rebuild:
+cargo clean
+cargo build --release
+```
+
+**Note:** This project's Cargo.toml has been updated with the correct compatible versions for ESP-IDF v5.1.2. If you cloned an older version of the repository, make sure to pull the latest changes.
+
 ### Flash Errors
 
 #### Error: "Permission denied: /dev/ttyUSB0" (Linux)
