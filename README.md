@@ -110,6 +110,7 @@ espflash flash --monitor target/xtensa-esp32-espidf/release/wre
 ## Documentation
 
 - **[Quick Start Guide](QUICKSTART.md)** - Get started in 15 minutes
+- **[Architecture Overview](ARCHITECTURE.md)** - System architecture and data flow diagrams
 - **[Rust Implementation Details](RUST_IMPLEMENTATION.md)** - In-depth architecture and design
 - **[Original MicroPython Code](src/main.py)** - Reference implementation
 
