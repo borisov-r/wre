@@ -79,13 +79,17 @@ impl RotaryEncoderState {
     }
 
     pub fn set_target_angles(&self, angles: Vec<f32>) {
-        let mut targets = self.target_angles.lock().unwrap();
+        let mut targets = self.target_angles.lock()
+            .expect("Target angles mutex poisoned");
         targets.clear();
-        // Convert degrees to half-steps
+        // Convert degrees to half-steps, with validation
         for angle in angles {
-            targets.push((angle * 2.0) as i32);
+            // Clamp angles to valid range [0, 360]
+            let clamped_angle = angle.max(0.0).min(360.0);
+            targets.push((clamped_angle * 2.0) as i32);
         }
-        *self.current_target_index.lock().unwrap() = 0;
+        *self.current_target_index.lock()
+            .expect("Current target index mutex poisoned") = 0;
         self.triggered.store(false, Ordering::SeqCst);
         self.reset_detected.store(false, Ordering::SeqCst);
         self.encoder_active.store(true, Ordering::SeqCst);
@@ -99,14 +103,15 @@ impl RotaryEncoderState {
     pub fn get_target_angles(&self) -> Vec<f32> {
         self.target_angles
             .lock()
-            .unwrap()
+            .expect("Target angles mutex poisoned")
             .iter()
             .map(|&v| v as f32 / 2.0)
             .collect()
     }
 
     pub fn get_current_target_index(&self) -> usize {
-        *self.current_target_index.lock().unwrap()
+        *self.current_target_index.lock()
+            .expect("Current target index mutex poisoned")
     }
 
     fn bound(&self, value: i32) -> i32 {
@@ -119,11 +124,16 @@ impl RotaryEncoderState {
         }
     }
 
+    // Process rotary encoder pin changes
+    // Note: This is called from ISR context. The mutex is held briefly (~1μs)
+    // during state transition. For even better performance, this could be
+    // reimplemented using atomic state machine or lock-free algorithm.
     pub fn process_pins(&self, clk_value: bool, dt_value: bool) {
         let old_value = self.get_value();
         let clk_dt_pins = ((clk_value as u8) << 1) | (dt_value as u8);
 
-        let mut state = self.state.lock().unwrap();
+        let mut state = self.state.lock()
+            .expect("State machine mutex poisoned");
         *state = TRANSITION_TABLE_HALF_STEP[(*state & STATE_MASK) as usize][clk_dt_pins as usize];
         let direction = *state & DIR_MASK;
 

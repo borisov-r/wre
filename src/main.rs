@@ -120,8 +120,6 @@ fn rotary_task(
         })?;
     }
 
-    let mut last_steps = -1;
-
     // Main rotary encoder loop
     loop {
         if !encoder_state.is_active() {
@@ -129,14 +127,16 @@ fn rotary_task(
             continue;
         }
 
-        let targets = encoder_state.target_angles.lock().unwrap();
+        let targets = encoder_state.target_angles.lock()
+            .expect("Target angles mutex poisoned");
         if targets.is_empty() {
             drop(targets);
             thread::sleep(Duration::from_millis(200));
             continue;
         }
 
-        let current_idx = *encoder_state.current_target_index.lock().unwrap();
+        let current_idx = *encoder_state.current_target_index.lock()
+            .expect("Current target index mutex poisoned");
         if current_idx >= targets.len() {
             drop(targets);
             thread::sleep(Duration::from_millis(200));
@@ -176,12 +176,14 @@ fn rotary_task(
             info!("🔄 Encoder reset to 0°");
 
             // Advance to next target
-            let mut idx = encoder_state.current_target_index.lock().unwrap();
+            let mut idx = encoder_state.current_target_index.lock()
+                .expect("Current target index mutex poisoned");
             *idx += 1;
             let new_idx = *idx;
             drop(idx);
 
-            let targets = encoder_state.target_angles.lock().unwrap();
+            let targets = encoder_state.target_angles.lock()
+                .expect("Target angles mutex poisoned");
             if new_idx >= targets.len() {
                 info!("✅ All targets completed and returned to 0°.");
                 encoder_state.stop();

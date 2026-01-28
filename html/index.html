@@ -273,7 +273,24 @@
         
         function setAngles() {
             const anglesInput = document.getElementById('angles').value;
-            const angles = anglesInput.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n));
+            const inputValues = anglesInput.split(',');
+            const angles = [];
+            const invalidValues = [];
+            
+            inputValues.forEach(s => {
+                const trimmed = s.trim();
+                if (trimmed === '') return;
+                const val = parseFloat(trimmed);
+                if (isNaN(val)) {
+                    invalidValues.push(trimmed);
+                } else {
+                    angles.push(val);
+                }
+            });
+            
+            if (invalidValues.length > 0) {
+                alert('Warning: The following values are invalid and will be ignored: ' + invalidValues.join(', '));
+            }
             
             if (angles.length === 0) {
                 alert('Please enter at least one valid angle');
@@ -316,6 +333,13 @@
         // Start polling for status updates
         updateStatus();
         updateInterval = setInterval(updateStatus, 200);
+        
+        // Clean up interval when page is unloaded
+        window.addEventListener('beforeunload', function() {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+            }
+        });
     </script>
 </body>
 </html>

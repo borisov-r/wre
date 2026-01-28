@@ -11,8 +11,17 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
-const WIFI_SSID: &str = env!("WIFI_SSID", "WiFi SSID not set");
-const WIFI_PASS: &str = env!("WIFI_PASS", "WiFi password not set");
+// WiFi credentials must be set via environment variables at compile time
+// Example: export WIFI_SSID='YourNetwork' && export WIFI_PASS='YourPassword'
+const WIFI_SSID: &str = match option_env!("WIFI_SSID") {
+    Some(v) => v,
+    None => "WIFI_SSID_NOT_SET",
+};
+
+const WIFI_PASS: &str = match option_env!("WIFI_PASS") {
+    Some(v) => v,
+    None => "WIFI_PASS_NOT_SET",
+};
 
 #[derive(Serialize, Deserialize)]
 struct SetAnglesRequest {
@@ -33,6 +42,13 @@ pub fn start_webserver(
     modem: Modem,
 ) -> anyhow::Result<()> {
     info!("Initializing WiFi...");
+
+    // Check if WiFi credentials are set
+    if WIFI_SSID == "WIFI_SSID_NOT_SET" || WIFI_PASS == "WIFI_PASS_NOT_SET" {
+        error!("WiFi credentials not set! Please set WIFI_SSID and WIFI_PASS environment variables.");
+        error!("Example: export WIFI_SSID='YourNetwork' && export WIFI_PASS='YourPassword'");
+        return Err(anyhow::anyhow!("WiFi credentials not configured"));
+    }
 
     let sysloop = EspSystemEventLoop::take()?;
     let nvs = EspDefaultNvsPartition::take()?;
@@ -85,7 +101,11 @@ pub fn start_webserver(
             output_on: encoder_state_status.is_output_on(),
         };
 
-        let json = serde_json::to_string(&status).unwrap();
+        let json = serde_json::to_string(&status)
+            .unwrap_or_else(|e| {
+                error!("Failed to serialize status: {:?}", e);
+                r#"{"error":"serialization_failed"}"#.to_string()
+            });
         req.into_response(200, Some("OK"), &[("Content-Type", "application/json")])?
             .write_all(json.as_bytes())?;
         Ok(())
@@ -94,7 +114,7 @@ pub fn start_webserver(
     // API: Set angles
     let encoder_state_set = encoder_state_handlers.clone();
     server.fn_handler("/api/set", embedded_svc::http::Method::Post, move |mut req| {
-        let mut buf = vec![0u8; 512];
+        let mut buf = vec![0u8; 1024]; // Increased from 512 to support more angles
         let len = req.read(&mut buf)?;
         
         match serde_json::from_slice::<SetAnglesRequest>(&buf[..len]) {
@@ -107,8 +127,9 @@ pub fn start_webserver(
             }
             Err(e) => {
                 error!("Failed to parse request: {:?}", e);
+                let error_msg = format!(r#"{{"status":"error","message":"Invalid JSON: {}"}}"#, e);
                 req.into_response(400, Some("Bad Request"), &[("Content-Type", "application/json")])?
-                    .write_all(b"{\"status\":\"error\",\"message\":\"Invalid JSON\"}")?;
+                    .write_all(error_msg.as_bytes())?;
             }
         }
         Ok(())
