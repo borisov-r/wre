@@ -8,7 +8,6 @@ use esp_idf_svc::nvs::EspDefaultNvsPartition;
 use esp_idf_svc::wifi::{BlockingWifi, EspWifi};
 use log::*;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
@@ -88,7 +87,7 @@ pub fn start_webserver(
         let html = include_str!("../html/index.html");
         req.into_ok_response()?
             .write_all(html.as_bytes())?;
-        Ok(())
+        Ok::<(), anyhow::Error>(())
     })?;
 
     // API: Get status
@@ -109,7 +108,7 @@ pub fn start_webserver(
             });
         req.into_response(200, Some("OK"), &[("Content-Type", "application/json")])?
             .write_all(json.as_bytes())?;
-        Ok(())
+        Ok::<(), anyhow::Error>(())
     })?;
 
     // API: Set angles
@@ -133,7 +132,7 @@ pub fn start_webserver(
                     .write_all(error_msg.as_bytes())?;
             }
         }
-        Ok(())
+        Ok::<(), anyhow::Error>(())
     })?;
 
     // API: Stop encoder
@@ -144,7 +143,7 @@ pub fn start_webserver(
         
         req.into_response(200, Some("OK"), &[("Content-Type", "application/json")])?
             .write_all(b"{\"status\":\"ok\"}")?;
-        Ok(())
+        Ok::<(), anyhow::Error>(())
     })?;
 
     info!("Web server started at http://{}", ip_info.ip);
