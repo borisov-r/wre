@@ -1,4 +1,4 @@
-name: CI
+name: CI and Release
 
 on:
   push:
@@ -18,7 +18,7 @@ jobs:
     name: Build for ESP32
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
     
     steps:
     - name: Checkout repository
@@ -96,3 +96,76 @@ jobs:
         name: wre-esp32-firmware
         path: target/xtensa-esp32-espidf/release/wre
         if-no-files-found: error
+    
+    # Create automatic release for successful builds on main/master branches
+    - name: Generate version tag
+      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+      id: version
+      run: |
+        # Use date-based versioning: v2026.01.29
+        DATE_VERSION=$(date -u +%Y.%m.%d)
+        BASE_TAG="v${DATE_VERSION}"
+        
+        # Check if a release with this date already exists
+        # If so, append a build number (.1, .2, etc.)
+        BUILD_NUM=0
+        TAG="${BASE_TAG}"
+        
+        # Use GitHub API to check existing releases
+        EXISTING_RELEASES=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          "https://api.github.com/repos/${{ github.repository }}/releases" | \
+          grep -o "\"tag_name\": \"${BASE_TAG}[^\"]*\"" || echo "")
+        
+        if echo "$EXISTING_RELEASES" | grep -q "${BASE_TAG}"; then
+          # Find the highest build number for today
+          MAX_BUILD=$(echo "$EXISTING_RELEASES" | \
+            sed -n "s/.*\"tag_name\": \"${BASE_TAG}\.\([0-9]\+\)\".*/\1/p" | \
+            sort -rn | head -1 || echo "0")
+          BUILD_NUM=$((MAX_BUILD + 1))
+          TAG="${BASE_TAG}.${BUILD_NUM}"
+        fi
+        
+        echo "version_tag=${TAG}" >> $GITHUB_OUTPUT
+        echo "Generated version tag: ${TAG}"
+    
+    - name: Prepare release artifacts
+      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+      run: |
+        mkdir -p release-artifacts
+        cp target/xtensa-esp32-espidf/release/wre release-artifacts/wre-esp32-${{ steps.version.outputs.version_tag }}
+        cp README.md release-artifacts/
+        if [ -f LICENSE ]; then
+          cp LICENSE release-artifacts/
+        fi
+        cp QUICKSTART.md release-artifacts/
+        cp NODEMCU_SETUP.md release-artifacts/
+    
+    - name: Create Release
+      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ steps.version.outputs.version_tag }}
+        name: Release ${{ steps.version.outputs.version_tag }}
+        files: |
+          release-artifacts/*
+        body: |
+          ## Wireless Rotary Encoder ${{ steps.version.outputs.version_tag }}
+          
+          **Automated release** from commit ${{ github.sha }}
+          
+          ### Installation
+          Flash the firmware to your ESP32 using:
+          ```bash
+          espflash flash wre-esp32-${{ steps.version.outputs.version_tag }}
+          ```
+          
+          ### Setup Instructions
+          1. Download the firmware binary
+          2. Follow the [QUICKSTART.md](https://github.com/${{ github.repository }}/blob/${{ github.sha }}/QUICKSTART.md) guide
+          3. For NodeMCU ESP32, see [NODEMCU_SETUP.md](https://github.com/${{ github.repository }}/blob/${{ github.sha }}/NODEMCU_SETUP.md)
+          
+          ### Changes
+          See the [commit history](https://github.com/${{ github.repository }}/commits/${{ github.sha }}) for details.
+        draft: false
+        prerelease: false
+        generate_release_notes: true

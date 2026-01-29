@@ -1,6 +1,8 @@
 # Deployment Guide
 
-> **💡 Quick Start Option:** Looking for the fastest way to get started? Download pre-built firmware from the [Releases](https://github.com/borisov-r/wre/releases) page and skip directly to [Flashing Pre-built Firmware](#flashing-pre-built-firmware)!
+> **💡 Quick Start Option:** Download pre-built firmware from the [Releases](https://github.com/borisov-r/wre/releases) page! 
+> 
+> **🤖 Automatic Releases:** New releases are automatically created with every successful build on the main branch with date-based versioning (e.g., v2026.01.29).
 
 ## Prerequisites Checklist
 

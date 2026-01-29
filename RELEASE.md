@@ -1,194 +1,140 @@
 # Release Process
 
-This document explains how to create releases for the WRE (Wireless Rotary Encoder) project.
+This document explains how releases are created for the WRE (Wireless Rotary Encoder) project.
 
-## Understanding the Release System
+## Automatic Release System
 
-The project uses GitHub Actions to automatically build and publish releases when you push a version tag. The release workflow:
+The project uses **automatic date-based releases** that are created whenever code is successfully built on the `main` or `master` branch.
 
-1. **Triggers** when you push a tag matching the pattern `v*.*.*` (e.g., `v1.0.0`, `v0.2.1`)
-2. **Builds** the ESP32 firmware in release mode
-3. **Creates** a GitHub Release with:
+### How It Works
+
+1. **Trigger**: When code is pushed to the `main` or `master` branch
+2. **Build**: The CI workflow automatically builds the ESP32 firmware in release mode
+3. **Version**: A date-based version tag is automatically generated (e.g., `v2026.01.29`)
+4. **Release**: A GitHub Release is automatically created with:
    - Pre-built firmware binary
    - README, QUICKSTART, and NODEMCU_SETUP documentation
    - Installation instructions
+   - Automatic release notes from commits
 
-## Why No Releases Are Showing
+### Version Naming Convention
 
-**The release workflow has never been triggered because no version tags exist in the repository.**
+Releases use **date-based versioning** in the format:
 
-The CI/Build workflow runs successfully on every push, but releases only happen when you create and push a version tag.
+- `v2026.01.29` - First release of the day
+- `v2026.01.29.1` - Second release of the day (if multiple builds occur)
+- `v2026.01.29.2` - Third release of the day, etc.
 
-## How to Create a Release
+This ensures:
+- ✅ Every successful build on main/master gets a release
+- ✅ Versions are chronological and easy to understand
+- ✅ Multiple releases per day are supported
+- ✅ No manual intervention required
 
-### Option 1: Using the Helper Script (Recommended)
+## Finding Releases
 
-The easiest way to create a release is using the provided helper script:
+All releases are available on the [Releases page](../../releases).
 
-```bash
-# Run the interactive release script
-./create-release.sh
-```
+The latest release is always the most recent date.
 
-The script will:
-1. Check your repository status
-2. Show existing tags
-3. Prompt for version number (validates semantic versioning)
-4. Ask for a release message
-5. Create and push the tag automatically
-6. Provide links to monitor the release workflow
+## What's in a Release
 
-### Option 2: Manual Tag Creation
+Each automatic release includes:
 
-If you prefer manual control:
+1. **Firmware Binary**: `wre-esp32-v2026.01.29` (ready to flash)
+2. **Documentation**: README, QUICKSTART, and NODEMCU_SETUP guides
+3. **Installation Instructions**: How to flash the firmware
+4. **Release Notes**: Automatically generated from commit messages
+5. **Commit Reference**: Links to the exact code that was built
 
-### Step 1: Decide on a Version Number
+## Installation
 
-Follow [Semantic Versioning](https://semver.org/):
-- **MAJOR** version (v**X**.0.0) - Incompatible API changes
-- **MINOR** version (v0.**X**.0) - New functionality (backwards compatible)
-- **PATCH** version (v0.0.**X**) - Bug fixes (backwards compatible)
-
-For the first release, use `v1.0.0` or `v0.1.0` depending on maturity.
-
-### Step 2: Create and Push the Tag
+Download the latest firmware from the [Releases page](../../releases) and flash it:
 
 ```bash
-# Ensure you're on the main branch with latest changes
-git checkout main
-git pull origin main
-
-# Create an annotated tag with a message
-git tag -a v1.0.0 -m "Release version 1.0.0"
-
-# Push the tag to GitHub (this triggers the release workflow)
-git push origin v1.0.0
+# Download the latest release firmware
+# Then flash it to your ESP32
+espflash flash wre-esp32-v2026.01.29
 ```
 
-### Step 3: Monitor the Release Workflow
+See [QUICKSTART.md](QUICKSTART.md) for complete setup instructions.
 
-1. Go to the [Actions tab](../../actions) in GitHub
-2. You should see a "Release" workflow running
-3. Wait for it to complete (takes ~10-15 minutes to build ESP32 firmware)
+## For Developers
 
-### Step 4: Verify the Release
+### No Manual Steps Required
 
-1. Go to the [Releases page](../../releases)
-2. You should see your new release with:
-   - Firmware binary named `wre-esp32-v1.0.0`
-   - Documentation files
-   - Installation instructions
+Unlike traditional release systems, you don't need to:
+- ❌ Create version tags manually
+- ❌ Run release scripts
+- ❌ Decide on version numbers
+- ❌ Manually trigger releases
 
-## Quick Reference Commands
+### Every Main Branch Build Creates a Release
 
-```bash
-# List existing tags
-git tag -l
+Simply merge your changes to the `main` or `master` branch, and a release is automatically created when the build succeeds.
 
-# Create and push a new release tag
-git tag -a v1.0.0 -m "Release version 1.0.0"
-git push origin v1.0.0
+### Workflow Details
 
-# Delete a tag if you made a mistake (be careful!)
-git tag -d v1.0.0                    # Delete locally
-git push origin --delete v1.0.0     # Delete from GitHub
-```
+The CI workflow (`.github/workflows/ci.yml`) handles everything:
 
-## Release Checklist
+1. **Build Check**: Runs on all pushes and PRs
+2. **Release Creation**: Only runs for pushes to main/master (not PRs)
+3. **Versioning**: Automatically generates date-based tags
+4. **Publishing**: Creates GitHub Release with all artifacts
 
-Before creating a release:
+### Continuous Deployment
 
-- [ ] All tests pass (`cargo test` if applicable)
-- [ ] CI workflow is passing on main branch
-- [ ] Update CHANGELOG.md (if you have one)
-- [ ] Version number follows semantic versioning
-- [ ] Tag message describes the release
-- [ ] Documentation is up to date
+This automatic release system enables continuous deployment:
+- Every commit to main/master is automatically released
+- Users always have access to the latest stable build
+- No release bottlenecks or manual processes
+- Full traceability from release to source code
 
-## Automated Release Workflow Details
+## Release Frequency
 
-The `.github/workflows/release.yml` workflow:
+Releases are created automatically for every successful build on main/master:
 
-1. **Triggers on**: Tags matching `v*.*.*` pattern
-2. **Permissions**: Requires `contents: write` to create releases
-3. **Build steps**:
-   - Sets up Rust with ESP32 toolchain
-   - Builds firmware in release mode
-   - Verifies build output
-4. **Release creation**:
-   - Creates GitHub Release using `softprops/action-gh-release@v2`
-   - Uploads firmware binary and documentation
-   - Generates release notes with installation instructions
-   - Sets release as non-draft and non-prerelease
+- **Development pace**: If you push 5 commits to main in one day, you'll get `v2026.01.29`, `v2026.01.29.1`, `v2026.01.29.2`, `v2026.01.29.3`, `v2026.01.29.4`
+- **Production readiness**: Only merge to main/master when code is ready for release
+- **Quality control**: Use PRs and branch protection to ensure main/master only contains production-ready code
 
 ## Troubleshooting
 
-### The release workflow didn't trigger
+### Release wasn't created after push to main
 
-- **Check tag format**: Must match `v*.*.*` pattern (e.g., `v1.0.0`, not `1.0.0` or `release-1.0.0`)
-- **Verify push**: Run `git ls-remote --tags origin` to see tags on GitHub
-- **Check Actions**: Visit the Actions tab to see if the workflow started
+1. Check the [Actions tab](../../actions) - did the CI workflow succeed?
+2. Verify you pushed to `main` or `master` branch (not a feature branch)
+3. Check workflow logs for any errors in the release steps
 
-### The release workflow failed
+### How do I create a specific version number?
 
-1. Check the workflow logs in the Actions tab
-2. Common issues:
-   - Build failures (check Rust/ESP toolchain setup)
-   - Permission issues (workflow needs `contents: write`)
-   - Network issues downloading dependencies
+The system uses automatic date-based versioning. You cannot create custom version numbers. The date-based approach ensures:
+- Chronological ordering
+- No version conflicts
+- Automated workflow
+- Clear release timeline
 
-### I created a tag by mistake
+### Can I manually create releases?
 
-```bash
-# Delete the local tag
-git tag -d v1.0.0
+The automatic system replaces manual releases. All releases should come from the CI workflow to ensure:
+- Consistent build environment
+- Verified builds (tests pass)
+- Complete documentation
+- Traceable to source commits
 
-# Delete the remote tag (if already pushed)
-git push origin --delete v1.0.0
-```
+## Migration from Manual Releases
 
-Note: If the release was already created, you'll need to manually delete it from the Releases page.
+Previous versions of this project used manual tag-based releases. This has been replaced with automatic releases for:
 
-## Examples
+- ✅ **Faster releases**: No manual steps
+- ✅ **Consistency**: Every build is released the same way
+- ✅ **Traceability**: Clear connection between releases and commits
+- ✅ **Simplicity**: No need to decide version numbers or run scripts
 
-### Creating your first release (v1.0.0)
-
-```bash
-git checkout main
-git pull origin main
-git tag -a v1.0.0 -m "First stable release with web UI and dual-core architecture"
-git push origin v1.0.0
-```
-
-### Creating a patch release (v1.0.1)
-
-```bash
-git checkout main
-git pull origin main
-git tag -a v1.0.1 -m "Fix WiFi reconnection issue"
-git push origin v1.0.1
-```
-
-### Creating a minor release (v1.1.0)
-
-```bash
-git checkout main
-git pull origin main
-git tag -a v1.1.0 -m "Add support for multiple encoder configurations"
-git push origin v1.1.0
-```
-
-## Next Steps
-
-Once you've created your first release:
-
-1. Users can download pre-built firmware from the Releases page
-2. No need to build from source - just flash the binary
-3. Update README.md to reference the latest release
-4. Consider adding release badges to README.md
+If you have the old `create-release.sh` script, it's no longer needed and can be removed.
 
 ## Additional Resources
 
 - [GitHub Releases Documentation](https://docs.github.com/en/repositories/releasing-projects-on-github)
-- [Semantic Versioning](https://semver.org/)
-- [Git Tagging](https://git-scm.com/book/en/v2/Git-Basics-Tagging)
+- [CI/CD Best Practices](https://docs.github.com/en/actions/guides)
+- [Continuous Deployment](https://en.wikipedia.org/wiki/Continuous_deployment)

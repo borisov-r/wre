@@ -7,7 +7,7 @@ Wireless Rotary Encoder
 
 > **💡 Looking for pre-built firmware?** Check the [Releases](../../releases) page for downloadable binaries!
 > 
-> **🏷️ Want to create a release?** See [RELEASE.md](RELEASE.md) for instructions.
+> **📦 Automatic Releases:** Every successful build on main/master automatically creates a new date-based release.
 
 **Using NodeMCU ESP32?** Follow the [NodeMCU ESP32-WROOM-32D Setup Guide](NODEMCU_SETUP.md) for detailed instructions!
 
@@ -140,7 +140,7 @@ espflash flash --monitor target/xtensa-esp32-espidf/release/wre
 - **[Original MicroPython Code](src/main.py)** - 📜 Reference implementation
 - **[Implementation Summary](IMPLEMENTATION_SUMMARY.md)** - 📊 Complete feature summary
 - **[Project Summary](PROJECT_SUMMARY.md)** - 📝 Visual overview
-- **[Release Process](RELEASE.md)** - 🏷️ How to create releases
+- **[Release Process](RELEASE.md)** - 🤖 Automatic release system documentation
 
 ## Project Structure
 

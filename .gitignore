@@ -181,3 +181,6 @@ Cargo.lock
 sdkconfig
 sdkconfig.old
 cfg.toml.local
+
+# Archived files (old manual release system)
+*.old
