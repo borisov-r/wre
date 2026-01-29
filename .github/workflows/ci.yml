@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+env:
+  CARGO_TERM_COLOR: always
+  WIFI_SSID: "test_ssid"
+  WIFI_PASS: "test_password"
+
+jobs:
+  build:
+    name: Build for ESP32
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@v1
+      with:
+        toolchain: stable
+        components: rust-src
+        
+    - name: Install espup
+      run: |
+        cargo install espup
+        espup install
+        
+    - name: Cache cargo registry
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-registry-
+          
+    - name: Cache cargo index
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/git
+        key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-index-
+          
+    - name: Cache target directory
+      uses: actions/cache@v4
+      with:
+        path: target
+        key: ${{ runner.os }}-target-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-target-
+    
+    - name: Build project
+      run: |
+        . $HOME/export-esp.sh
+        cargo build --release
+        
+    - name: Check project
+      run: |
+        . $HOME/export-esp.sh
+        cargo check --release
+        
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: wre-esp32-firmware
+        path: target/xtensa-esp32-espidf/release/wre
+        if-no-files-found: warn
