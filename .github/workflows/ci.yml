@@ -41,6 +41,9 @@ jobs:
         cargo install espup
         espup install
         
+    - name: Install ldproxy
+      run: cargo install ldproxy
+        
     - name: Restore rust-toolchain.toml
       if: always()
       run: |
