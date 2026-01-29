@@ -1,4 +1,4 @@
-name: CI
+name: CI and Release
 
 on:
   push:
@@ -18,7 +18,7 @@ jobs:
     name: Build for ESP32
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
     
     steps:
     - name: Checkout repository
@@ -96,3 +96,107 @@ jobs:
         name: wre-esp32-firmware
         path: target/xtensa-esp32-espidf/release/wre
         if-no-files-found: error
+    
+    # Create automatic release for successful builds on main/master branches
+    - name: Generate version tag
+      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+      id: version
+      run: |
+        # Use date-based versioning (UTC): v2026.01.29
+        DATE_VERSION=$(date -u +%Y.%m.%d)
+        BASE_TAG="v${DATE_VERSION}"
+        
+        # Check if a release with this date already exists
+        # If so, append a build number (.1, .2, etc.)
+        BUILD_NUM=""
+        TAG="${BASE_TAG}"
+        
+        # Use GitHub API to check existing releases
+        HTTP_CODE=$(curl -s -w "%{http_code}" -o /tmp/releases.json \
+          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          "https://api.github.com/repos/${{ github.repository }}/releases")
+        
+        if [ "$HTTP_CODE" -ne 200 ]; then
+          echo "Error: Failed to fetch existing releases (HTTP $HTTP_CODE)"
+          echo "Cannot safely determine next version tag. Failing to prevent duplicates."
+          exit 1
+        fi
+        
+        # Escape dots in BASE_TAG for regex matching
+        BASE_TAG_ESCAPED=$(echo "$BASE_TAG" | sed 's/\./\\./g')
+        
+        # Extract all tags that start with our base tag for today
+        EXISTING_TAGS=$(grep -o "\"tag_name\": \"${BASE_TAG}[^\"]*\"" /tmp/releases.json | \
+          sed 's/.*"tag_name": "\([^"]*\)".*/\1/' || echo "")
+        
+        if [ -n "$EXISTING_TAGS" ]; then
+          echo "Found existing releases for today:"
+          echo "$EXISTING_TAGS"
+          
+          # Find the highest build number
+          # Handle both base tag (no suffix) and numbered tags (.1, .2, etc.)
+          MAX_BUILD=0
+          while IFS= read -r existing_tag; do
+            if [ "$existing_tag" = "$BASE_TAG" ]; then
+              # Base tag exists without number, so next should be .1
+              MAX_BUILD=0
+            elif [[ "$existing_tag" =~ ^${BASE_TAG_ESCAPED}\.([0-9]+)$ ]]; then
+              # Extract the build number
+              BUILD="${BASH_REMATCH[1]}"
+              if [ "$BUILD" -gt "$MAX_BUILD" ]; then
+                MAX_BUILD="$BUILD"
+              fi
+            fi
+          done <<< "$EXISTING_TAGS"
+          
+          BUILD_NUM=$((MAX_BUILD + 1))
+          TAG="${BASE_TAG}.${BUILD_NUM}"
+          echo "Incrementing to build number: ${BUILD_NUM}"
+        fi
+        
+        echo "version_tag=${TAG}" >> $GITHUB_OUTPUT
+        echo "Generated version tag: ${TAG}"
+    
+    - name: Prepare release artifacts
+      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+      run: |
+        mkdir -p release-artifacts
+        cp target/xtensa-esp32-espidf/release/wre release-artifacts/wre-esp32-${{ steps.version.outputs.version_tag }}
+        cp README.md release-artifacts/
+        if [ -f LICENSE ]; then
+          cp LICENSE release-artifacts/
+        fi
+        cp QUICKSTART.md release-artifacts/
+        cp NODEMCU_SETUP.md release-artifacts/
+    
+    - name: Create Release
+      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ steps.version.outputs.version_tag }}
+        name: Release ${{ steps.version.outputs.version_tag }}
+        files: |
+          release-artifacts/*
+        body: |
+          ## Wireless Rotary Encoder ${{ steps.version.outputs.version_tag }}
+          
+          **Automated release** from commit ${{ github.sha }}
+          
+          ### Installation
+          Flash the firmware to your ESP32 using:
+          ```bash
+          espflash flash wre-esp32-${{ steps.version.outputs.version_tag }}
+          ```
+          
+          ### Setup Instructions
+          1. Download the firmware binary
+          2. Follow the [QUICKSTART.md](https://github.com/${{ github.repository }}/blob/${{ github.sha }}/QUICKSTART.md) guide
+          3. For NodeMCU ESP32, see [NODEMCU_SETUP.md](https://github.com/${{ github.repository }}/blob/${{ github.sha }}/NODEMCU_SETUP.md)
+          
+          ### Changes
+          See the [commit history](https://github.com/${{ github.repository }}/commits/${{ github.sha }}) for details.
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+        make_latest: true
+        fail_on_unmatched_files: true
