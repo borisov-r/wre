@@ -1,5 +1,7 @@
 # Deployment Guide
 
+> **💡 Quick Start Option:** Looking for the fastest way to get started? Download pre-built firmware from the [Releases](https://github.com/borisov-r/wre/releases) page and skip directly to [Flashing Pre-built Firmware](#flashing-pre-built-firmware)!
+
 ## Prerequisites Checklist
 
 Before deploying the WRE firmware:
@@ -56,6 +58,19 @@ Output Connections:
 ```
 
 ## Building and Flashing
+
+### Method 0: Use Pre-built Firmware (Fastest)
+
+If a release is available, you can skip building from source:
+
+1. Go to the [Releases page](https://github.com/borisov-r/wre/releases)
+2. Download the latest `wre-esp32-v*.*.*.bin` firmware
+3. Flash it directly:
+   ```bash
+   espflash flash wre-esp32-v1.0.0
+   ```
+
+> **Note:** WiFi credentials are configured after flashing. See the [Configuration section](#wifi-configuration-post-flash) below.
 
 ### Method 1: Quick Build (Recommended)
 
