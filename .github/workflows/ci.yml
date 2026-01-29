@@ -8,6 +8,8 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  # Note: WiFi credentials are required for build but not embedded in the binary
+  # These are placeholder values for CI builds only
   WIFI_SSID: "test_ssid"
   WIFI_PASS: "test_password"
 
@@ -60,14 +62,17 @@ jobs:
         . $HOME/export-esp.sh
         cargo build --release
         
-    - name: Check project
+    - name: Verify build output
       run: |
-        . $HOME/export-esp.sh
-        cargo check --release
+        if [ ! -f target/xtensa-esp32-espidf/release/wre ]; then
+          echo "Error: Build binary not found at expected location"
+          exit 1
+        fi
+        ls -lh target/xtensa-esp32-espidf/release/wre
         
     - name: Upload build artifact
       uses: actions/upload-artifact@v4
       with:
         name: wre-esp32-firmware
         path: target/xtensa-esp32-espidf/release/wre
-        if-no-files-found: warn
+        if-no-files-found: error

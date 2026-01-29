@@ -7,6 +7,8 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  # Note: These are placeholder WiFi credentials for build requirements only
+  # Users must configure WiFi settings on the device after flashing
   WIFI_SSID: "configure_your_ssid"
   WIFI_PASS: "configure_your_password"
 
@@ -67,12 +69,22 @@ jobs:
         . $HOME/export-esp.sh
         cargo build --release
         
+    - name: Verify build output
+      run: |
+        if [ ! -f target/xtensa-esp32-espidf/release/wre ]; then
+          echo "Error: Build binary not found at expected location"
+          exit 1
+        fi
+        ls -lh target/xtensa-esp32-espidf/release/wre
+        
     - name: Prepare release artifacts
       run: |
         mkdir -p release-artifacts
         cp target/xtensa-esp32-espidf/release/wre release-artifacts/wre-esp32-${{ steps.tag_name.outputs.tag_name }}
         cp README.md release-artifacts/
-        cp LICENSE release-artifacts/ || echo "No LICENSE file"
+        if [ -f LICENSE ]; then
+          cp LICENSE release-artifacts/
+        fi
         cp QUICKSTART.md release-artifacts/
         cp NODEMCU_SETUP.md release-artifacts/
         
