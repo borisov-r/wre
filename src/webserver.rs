@@ -1,5 +1,6 @@
 use crate::rotary::RotaryEncoderState;
-use embedded_svc::wifi::{ClientConfiguration, Configuration, Wifi as _};
+use embedded_svc::io::Write;
+use embedded_svc::wifi::{ClientConfiguration, Configuration};
 use esp_idf_hal::modem::Modem;
 use esp_idf_svc::eventloop::EspSystemEventLoop;
 use esp_idf_svc::http::server::{Configuration as HttpConfig, EspHttpServer};
@@ -59,8 +60,8 @@ pub fn start_webserver(
     )?;
 
     wifi.set_configuration(&Configuration::Client(ClientConfiguration {
-        ssid: WIFI_SSID.into(),
-        password: WIFI_PASS.into(),
+        ssid: WIFI_SSID.try_into().unwrap(),
+        password: WIFI_PASS.try_into().unwrap(),
         ..Default::default()
     }))?;
 
