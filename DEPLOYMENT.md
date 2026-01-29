@@ -64,7 +64,7 @@ Output Connections:
 If a release is available, you can skip building from source:
 
 1. Go to the [Releases page](https://github.com/borisov-r/wre/releases)
-2. Download the latest `wre-esp32-v*.*.*.bin` firmware
+2. Download the latest `wre-esp32-v*.*.*` firmware (e.g., `wre-esp32-v1.0.0`)
 3. Flash it directly:
    ```bash
    espflash flash wre-esp32-v1.0.0

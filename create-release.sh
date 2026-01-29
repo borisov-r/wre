@@ -146,8 +146,14 @@ print_success "Tag created"
 
 echo ""
 print_info "Pushing tag to origin..."
-git push origin "$tag_name"
-print_success "Tag pushed to GitHub"
+if git push origin "$tag_name"; then
+    print_success "Tag pushed to GitHub"
+else
+    print_error "Failed to push tag to GitHub"
+    print_warning "The tag was created locally but not pushed."
+    print_warning "You can manually push it later with: git push origin $tag_name"
+    exit 1
+fi
 
 echo ""
 print_success "Release process started!"
@@ -155,9 +161,10 @@ echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 print_info "Next steps:"
-echo "  1. Go to: https://github.com/$(git remote get-url origin | sed 's/.*github.com[:/]\(.*\)\.git/\1/')/actions"
+REPO_PATH=$(git remote get-url origin | sed -e 's/.*github.com[:/]//' -e 's/\.git$//')
+echo "  1. Go to: https://github.com/$REPO_PATH/actions"
 echo "  2. Watch the 'Release' workflow (takes ~10-15 minutes)"
-echo "  3. Check releases: https://github.com/$(git remote get-url origin | sed 's/.*github.com[:/]\(.*\)\.git/\1/')/releases"
+echo "  3. Check releases: https://github.com/$REPO_PATH/releases"
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
