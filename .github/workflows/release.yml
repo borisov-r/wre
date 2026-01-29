@@ -29,6 +29,12 @@ jobs:
         echo "current_version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
         echo "tag_name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
         
+    - name: Temporarily move rust-toolchain.toml
+      run: |
+        # Move rust-toolchain.toml to avoid toolchain conflict during setup
+        # It will be restored after espup installs the ESP toolchain
+        mv rust-toolchain.toml rust-toolchain.toml.bak
+        
     - name: Install Rust
       uses: dtolnay/rust-toolchain@v1
       with:
@@ -37,13 +43,12 @@ jobs:
         
     - name: Install espup
       run: |
-        # Temporarily move rust-toolchain.toml to avoid toolchain conflict
-        # Ensure it's restored even if installation fails
-        trap 'mv rust-toolchain.toml.bak rust-toolchain.toml 2>/dev/null || true' EXIT
-        mv rust-toolchain.toml rust-toolchain.toml.bak
         cargo install espup
         espup install
-        # Restore rust-toolchain.toml
+        
+    - name: Restore rust-toolchain.toml
+      run: |
+        # Restore rust-toolchain.toml now that ESP toolchain is installed
         mv rust-toolchain.toml.bak rust-toolchain.toml
         
     - name: Cache cargo registry
