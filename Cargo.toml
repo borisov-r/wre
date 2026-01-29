@@ -35,3 +35,8 @@ serde_json = "1.0"
 
 [build-dependencies]
 embuild = { version = "0.31.3", features = ["espidf"] }
+
+[patch.crates-io]
+# Patch esp-idf-svc to fix type compatibility issues with ESP-IDF v5.1+
+# The published versions have type mismatches between i8 and u8 pointers
+esp-idf-svc = { git = "https://github.com/esp-rs/esp-idf-svc", rev = "83d638f" }
