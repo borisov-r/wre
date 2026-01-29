@@ -33,6 +33,8 @@ jobs:
     - name: Install espup
       run: |
         # Temporarily move rust-toolchain.toml to avoid toolchain conflict
+        # Ensure it's restored even if installation fails
+        trap 'mv rust-toolchain.toml.bak rust-toolchain.toml 2>/dev/null || true' EXIT
         mv rust-toolchain.toml rust-toolchain.toml.bak
         cargo install espup
         espup install
