@@ -108,21 +108,48 @@ jobs:
         
         # Check if a release with this date already exists
         # If so, append a build number (.1, .2, etc.)
-        BUILD_NUM=0
+        BUILD_NUM=""
         TAG="${BASE_TAG}"
         
         # Use GitHub API to check existing releases
-        EXISTING_RELEASES=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-          "https://api.github.com/repos/${{ github.repository }}/releases" | \
-          grep -o "\"tag_name\": \"${BASE_TAG}[^\"]*\"" || echo "")
+        HTTP_CODE=$(curl -s -w "%{http_code}" -o /tmp/releases.json \
+          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          "https://api.github.com/repos/${{ github.repository }}/releases")
         
-        if echo "$EXISTING_RELEASES" | grep -q "${BASE_TAG}"; then
-          # Find the highest build number for today
-          MAX_BUILD=$(echo "$EXISTING_RELEASES" | \
-            sed -n "s/.*\"tag_name\": \"${BASE_TAG}\.\([0-9]\+\)\".*/\1/p" | \
-            sort -rn | head -1 || echo "0")
+        if [ "$HTTP_CODE" -ne 200 ]; then
+          echo "Warning: Failed to fetch existing releases (HTTP $HTTP_CODE), using base tag"
+          echo "version_tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "Generated version tag: ${TAG}"
+          exit 0
+        fi
+        
+        # Extract all tags that start with our base tag for today
+        EXISTING_TAGS=$(grep -o "\"tag_name\": \"${BASE_TAG}[^\"]*\"" /tmp/releases.json | \
+          sed 's/.*"tag_name": "\([^"]*\)".*/\1/' || echo "")
+        
+        if [ -n "$EXISTING_TAGS" ]; then
+          echo "Found existing releases for today:"
+          echo "$EXISTING_TAGS"
+          
+          # Find the highest build number
+          # Handle both base tag (no suffix) and numbered tags (.1, .2, etc.)
+          MAX_BUILD=0
+          while IFS= read -r existing_tag; do
+            if [ "$existing_tag" = "$BASE_TAG" ]; then
+              # Base tag exists without number, so next should be .1
+              MAX_BUILD=0
+            elif [[ "$existing_tag" =~ ^${BASE_TAG}\.([0-9]+)$ ]]; then
+              # Extract the build number
+              BUILD="${BASH_REMATCH[1]}"
+              if [ "$BUILD" -gt "$MAX_BUILD" ]; then
+                MAX_BUILD="$BUILD"
+              fi
+            fi
+          done <<< "$EXISTING_TAGS"
+          
           BUILD_NUM=$((MAX_BUILD + 1))
           TAG="${BASE_TAG}.${BUILD_NUM}"
+          echo "Incrementing to build number: ${BUILD_NUM}"
         fi
         
         echo "version_tag=${TAG}" >> $GITHUB_OUTPUT
@@ -169,3 +196,5 @@ jobs:
         draft: false
         prerelease: false
         generate_release_notes: true
+        make_latest: true
+        fail_on_unmatched_files: true
