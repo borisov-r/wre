@@ -47,9 +47,13 @@ jobs:
         espup install
         
     - name: Restore rust-toolchain.toml
+      if: always()
       run: |
         # Restore rust-toolchain.toml now that ESP toolchain is installed
-        mv rust-toolchain.toml.bak rust-toolchain.toml
+        # Use if statement to avoid error if backup doesn't exist
+        if [ -f rust-toolchain.toml.bak ]; then
+          mv rust-toolchain.toml.bak rust-toolchain.toml
+        fi
         
     - name: Cache cargo registry
       uses: actions/cache@v4
