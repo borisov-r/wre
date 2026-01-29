@@ -1,6 +1,8 @@
 # wre
 Wireless Rotary Encoder
 
+[![CI](https://github.com/borisov-r/wre/actions/workflows/ci.yml/badge.svg)](https://github.com/borisov-r/wre/actions/workflows/ci.yml)
+
 ## 🚀 Quick Start
 
 **Using NodeMCU ESP32?** Follow the [NodeMCU ESP32-WROOM-32D Setup Guide](NODEMCU_SETUP.md) for detailed instructions!

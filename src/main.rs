@@ -7,7 +7,6 @@ use esp_idf_hal::task::thread::ThreadSpawnConfiguration;
 use esp_idf_sys as _;
 use log::*;
 use rotary::RotaryEncoderState;
-use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 

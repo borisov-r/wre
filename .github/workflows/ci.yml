@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+env:
+  CARGO_TERM_COLOR: always
+  # Note: WiFi credentials are required for build but not embedded in the binary
+  # These are placeholder values for CI builds only
+  WIFI_SSID: "test_ssid"
+  WIFI_PASS: "test_password"
+
+jobs:
+  build:
+    name: Build for ESP32
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Temporarily move rust-toolchain.toml
+      run: |
+        # Move rust-toolchain.toml to avoid toolchain conflict during setup
+        # It will be restored after espup installs the ESP toolchain
+        mv rust-toolchain.toml rust-toolchain.toml.bak
+      
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@v1
+      with:
+        toolchain: stable
+        components: rust-src
+        
+    - name: Install espup
+      run: |
+        cargo install espup
+        espup install
+        
+    - name: Install ldproxy
+      run: cargo install ldproxy
+        
+    - name: Restore rust-toolchain.toml
+      if: always()
+      run: |
+        # Restore rust-toolchain.toml now that ESP toolchain is installed
+        # Use if statement to avoid error if backup doesn't exist
+        if [ -f rust-toolchain.toml.bak ]; then
+          mv rust-toolchain.toml.bak rust-toolchain.toml
+        fi
+        
+    - name: Cache cargo registry
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-registry-
+          
+    - name: Cache cargo index
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/git
+        key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-index-
+          
+    - name: Cache target directory
+      uses: actions/cache@v4
+      with:
+        path: target
+        key: ${{ runner.os }}-target-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-target-
+    
+    - name: Build project
+      run: |
+        . $HOME/export-esp.sh
+        cargo build --release
+        
+    - name: Verify build output
+      run: |
+        if [ ! -f target/xtensa-esp32-espidf/release/wre ]; then
+          echo "Error: Build binary not found at expected location"
+          exit 1
+        fi
+        ls -lh target/xtensa-esp32-espidf/release/wre
+        
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: wre-esp32-firmware
+        path: target/xtensa-esp32-espidf/release/wre
+        if-no-files-found: error
