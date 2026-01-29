@@ -102,7 +102,7 @@ jobs:
       if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
       id: version
       run: |
-        # Use date-based versioning: v2026.01.29
+        # Use date-based versioning (UTC): v2026.01.29
         DATE_VERSION=$(date -u +%Y.%m.%d)
         BASE_TAG="v${DATE_VERSION}"
         
@@ -117,11 +117,13 @@ jobs:
           "https://api.github.com/repos/${{ github.repository }}/releases")
         
         if [ "$HTTP_CODE" -ne 200 ]; then
-          echo "Warning: Failed to fetch existing releases (HTTP $HTTP_CODE), using base tag"
-          echo "version_tag=${TAG}" >> $GITHUB_OUTPUT
-          echo "Generated version tag: ${TAG}"
-          exit 0
+          echo "Error: Failed to fetch existing releases (HTTP $HTTP_CODE)"
+          echo "Cannot safely determine next version tag. Failing to prevent duplicates."
+          exit 1
         fi
+        
+        # Escape dots in BASE_TAG for regex matching
+        BASE_TAG_ESCAPED=$(echo "$BASE_TAG" | sed 's/\./\\./g')
         
         # Extract all tags that start with our base tag for today
         EXISTING_TAGS=$(grep -o "\"tag_name\": \"${BASE_TAG}[^\"]*\"" /tmp/releases.json | \
@@ -138,7 +140,7 @@ jobs:
             if [ "$existing_tag" = "$BASE_TAG" ]; then
               # Base tag exists without number, so next should be .1
               MAX_BUILD=0
-            elif [[ "$existing_tag" =~ ^${BASE_TAG}\.([0-9]+)$ ]]; then
+            elif [[ "$existing_tag" =~ ^${BASE_TAG_ESCAPED}\.([0-9]+)$ ]]; then
               # Extract the build number
               BUILD="${BASH_REMATCH[1]}"
               if [ "$BUILD" -gt "$MAX_BUILD" ]; then

@@ -25,11 +25,14 @@ Releases use **date-based versioning** in the format:
 - `v2026.01.29.1` - Second release of the day (if multiple builds occur)
 - `v2026.01.29.2` - Third release of the day, etc.
 
+**Note:** Dates are in **UTC timezone**. If you commit late in your local day, the release might have the next day's date in UTC.
+
 This ensures:
 - ✅ Every successful build on main/master gets a release
 - ✅ Versions are chronological and easy to understand
 - ✅ Multiple releases per day are supported
 - ✅ No manual intervention required
+- ✅ Consistent timezone (UTC) for all releases
 
 ## Finding Releases
 
