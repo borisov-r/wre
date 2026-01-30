@@ -45,7 +45,7 @@ The latest release is always the most recent date.
 Each automatic release includes:
 
 1. **Firmware Binary**: `wre-esp32-v2026.01.29` (ready to flash)
-2. **Documentation**: README, QUICKSTART, and NODEMCU_SETUP guides
+2. **Documentation**: README, QUICKSTART, NODEMCU_SETUP, and FLASHING guides
 3. **Installation Instructions**: How to flash the firmware
 4. **Release Notes**: Automatically generated from commit messages
 5. **Commit Reference**: Links to the exact code that was built
@@ -55,12 +55,29 @@ Each automatic release includes:
 Download the latest firmware from the [Releases page](../../releases) and flash it:
 
 ```bash
-# Download the latest release firmware
+# Download the latest release firmware (replace with actual version)
 # Then flash it to your ESP32
+
+# Option 1: Auto-detect port and flash with monitor
+espflash flash --monitor wre-esp32-v2026.01.29
+
+# Option 2: Specify port manually
+espflash flash --port /dev/ttyUSB0 --monitor wre-esp32-v2026.01.29
+
+# Option 3: Flash only (no monitor)
 espflash flash wre-esp32-v2026.01.29
 ```
 
-See [QUICKSTART.md](QUICKSTART.md) for complete setup instructions.
+### Important Notes
+
+**⚠️ WiFi Credentials:** Pre-built firmware contains test credentials (`test_ssid`/`test_password`) from CI builds. To use your own WiFi network, you must build from source with your credentials. See [QUICKSTART.md](QUICKSTART.md) for complete setup instructions.
+
+**Common Flash Options:**
+- `--monitor` - Start serial monitor after flashing to see device output
+- `--port <PORT>` - Manually specify serial port (e.g., `/dev/ttyUSB0`, `COM3`)
+- `--baud <RATE>` - Use lower baud rate if flashing fails (e.g., `--baud 115200`)
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for troubleshooting and advanced options.
 
 ## For Developers
 

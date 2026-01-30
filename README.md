@@ -8,6 +8,8 @@ Wireless Rotary Encoder
 > **💡 Looking for pre-built firmware?** Check the [Releases](../../releases) page for downloadable binaries!
 > 
 > **📦 Automatic Releases:** Every successful build on main/master automatically creates a new date-based release.
+> 
+> **📥 How to Flash:** See the [Flashing Guide](FLASHING.md) for complete instructions on flashing pre-built firmware.
 
 **Using NodeMCU ESP32?** Follow the [NodeMCU ESP32-WROOM-32D Setup Guide](NODEMCU_SETUP.md) for detailed instructions!
 
@@ -127,6 +129,7 @@ espflash flash --monitor target/xtensa-esp32-espidf/release/wre
 ## Documentation
 
 ### Getting Started
+- **[Flashing Guide](FLASHING.md)** - 📥 Complete guide to flashing firmware (pre-built or custom)
 - **[NodeMCU ESP32 Setup Guide](NODEMCU_SETUP.md)** - 📱 Complete setup for NodeMCU ESP32-WROOM-32D (Rust installation, drivers, flashing)
 - **[Quick Start Guide](QUICKSTART.md)** - ⚡ Get started in 15 minutes (for experienced users)
 - **[Deployment Guide](DEPLOYMENT.md)** - 🚀 Production deployment
