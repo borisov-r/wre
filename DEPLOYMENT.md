@@ -81,14 +81,15 @@ If a release is available, you can skip building from source:
 
 > **⚠️ Important:** Pre-built firmware contains **test WiFi credentials** (`test_ssid`/`test_password`) from CI builds.
 > 
-> **To use your own WiFi:**
-> - You must build from source (Methods 1-3 below) with your credentials
-> - Or wait for future OTA update support to configure WiFi post-flash
+> **WiFi Connection Options:**
+> - Pre-built firmware will try to connect to test credentials, then fall back to **Access Point mode**
+> - In AP mode: Connect to WiFi "abkant" (password: "123456789") to access the device
+> - To use your own WiFi network: Build from source (Methods 1-3 below) with your credentials
 > 
 > Pre-built firmware is useful for:
-> - Testing the device without WiFi
+> - Quick evaluation without any WiFi setup (just connect to "abkant" AP)
+> - Testing the device functionality immediately
 > - Verifying hardware before full setup
-> - Quick evaluation of the software
 
 ### Method 1: Quick Build (Recommended)
 
