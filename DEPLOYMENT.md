@@ -66,13 +66,29 @@ Output Connections:
 If a release is available, you can skip building from source:
 
 1. Go to the [Releases page](https://github.com/borisov-r/wre/releases)
-2. Download the latest `wre-esp32-v*.*.*` firmware (e.g., `wre-esp32-v1.0.0`)
+2. Download the latest `wre-esp32-v*.*.*` firmware (e.g., `wre-esp32-v2026.01.29`)
 3. Flash it directly:
    ```bash
-   espflash flash wre-esp32-v1.0.0
+   # Basic flash (auto-detects port)
+   espflash flash wre-esp32-v2026.01.29
+
+   # Flash with serial monitor
+   espflash flash --monitor wre-esp32-v2026.01.29
+
+   # Specify port manually if auto-detection fails
+   espflash flash --port /dev/ttyUSB0 --monitor wre-esp32-v2026.01.29
    ```
 
-> **Note:** WiFi credentials are configured after flashing. See the [Configuration section](#wifi-configuration-post-flash) below.
+> **⚠️ Important:** Pre-built firmware contains **test WiFi credentials** (`test_ssid`/`test_password`) from CI builds.
+> 
+> **To use your own WiFi:**
+> - You must build from source (Methods 1-3 below) with your credentials
+> - Or wait for future OTA update support to configure WiFi post-flash
+> 
+> Pre-built firmware is useful for:
+> - Testing the device without WiFi
+> - Verifying hardware before full setup
+> - Quick evaluation of the software
 
 ### Method 1: Quick Build (Recommended)
 

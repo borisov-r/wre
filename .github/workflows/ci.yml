@@ -168,6 +168,7 @@ jobs:
         fi
         cp QUICKSTART.md release-artifacts/
         cp NODEMCU_SETUP.md release-artifacts/
+        cp FLASHING.md release-artifacts/
     
     - name: Create Release
       if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
@@ -182,18 +183,23 @@ jobs:
           
           **Automated release** from commit ${{ github.sha }}
           
-          ### Installation
-          Flash the firmware to your ESP32 using:
+          ### 📥 Quick Flash Instructions
           ```bash
-          espflash flash wre-esp32-${{ steps.version.outputs.version_tag }}
+          espflash flash --monitor wre-esp32-${{ steps.version.outputs.version_tag }}
           ```
           
-          ### Setup Instructions
-          1. Download the firmware binary
-          2. Follow the [QUICKSTART.md](https://github.com/${{ github.repository }}/blob/${{ github.sha }}/QUICKSTART.md) guide
-          3. For NodeMCU ESP32, see [NODEMCU_SETUP.md](https://github.com/${{ github.repository }}/blob/${{ github.sha }}/NODEMCU_SETUP.md)
+          **⚠️ Important:** Pre-built firmware contains test WiFi credentials. See the [FLASHING.md](https://github.com/${{ github.repository }}/blob/${{ github.sha }}/FLASHING.md) guide for complete instructions.
           
-          ### Changes
+          ### 📚 Setup Instructions
+          1. Download the firmware binary (`wre-esp32-${{ steps.version.outputs.version_tag }}`)
+          2. Follow the [FLASHING.md](https://github.com/${{ github.repository }}/blob/${{ github.sha }}/FLASHING.md) guide
+          3. For first-time setup, see [QUICKSTART.md](https://github.com/${{ github.repository }}/blob/${{ github.sha }}/QUICKSTART.md)
+          4. For NodeMCU ESP32, see [NODEMCU_SETUP.md](https://github.com/${{ github.repository }}/blob/${{ github.sha }}/NODEMCU_SETUP.md)
+          
+          ### 🔑 WiFi Configuration
+          To use your own WiFi network (instead of test credentials), you must build from source. See the documentation for details.
+          
+          ### 📝 Changes
           See the [commit history](https://github.com/${{ github.repository }}/commits/${{ github.sha }}) for details.
         draft: false
         prerelease: false
