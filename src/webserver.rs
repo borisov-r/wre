@@ -24,17 +24,18 @@ const WIFI_PASS: &str = match option_env!("WIFI_PASS") {
 };
 
 // Default AP (Access Point) configuration for fallback mode
+// Note: These credentials are hardcoded as per requirements.
+// In production, consider making these configurable or device-specific for better security.
 const AP_SSID: &str = "abkant";
 const AP_PASS: &str = "123456789";
 
 fn setup_ap_mode(wifi: &mut BlockingWifi<EspWifi<'static>>) -> anyhow::Result<std::net::Ipv4Addr> {
     info!("Configuring Access Point mode...");
     info!("AP SSID: {}", AP_SSID);
-    info!("AP Password: {}", AP_PASS);
     
     wifi.set_configuration(&Configuration::AccessPoint(AccessPointConfiguration {
-        ssid: AP_SSID.try_into().unwrap(),
-        password: AP_PASS.try_into().unwrap(),
+        ssid: AP_SSID.try_into().map_err(|_| anyhow::anyhow!("AP SSID too long"))?,
+        password: AP_PASS.try_into().map_err(|_| anyhow::anyhow!("AP password too long"))?,
         auth_method: AuthMethod::WPA2Personal,
         ..Default::default()
     }))?;
@@ -47,7 +48,7 @@ fn setup_ap_mode(wifi: &mut BlockingWifi<EspWifi<'static>>) -> anyhow::Result<st
     
     let ip_info = wifi.wifi().ap_netif().get_ip_info()?;
     info!("Access Point started! IP: {}", ip_info.ip);
-    info!("Connect to WiFi network '{}' with password '{}'", AP_SSID, AP_PASS);
+    info!("Connect to WiFi network '{}' to access the device", AP_SSID);
     
     Ok(ip_info.ip)
 }
@@ -87,8 +88,8 @@ pub fn start_webserver(
         info!("Attempting to connect to WiFi network: {}", WIFI_SSID);
         
         wifi.set_configuration(&Configuration::Client(ClientConfiguration {
-            ssid: WIFI_SSID.try_into().unwrap(),
-            password: WIFI_PASS.try_into().unwrap(),
+            ssid: WIFI_SSID.try_into().map_err(|_| anyhow::anyhow!("WiFi SSID too long"))?,
+            password: WIFI_PASS.try_into().map_err(|_| anyhow::anyhow!("WiFi password too long"))?,
             ..Default::default()
         }))?;
 

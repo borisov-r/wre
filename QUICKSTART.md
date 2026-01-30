@@ -131,7 +131,7 @@ This error has been fixed in the current version. Make sure you're using the lat
 ### WiFi not connecting
 - Don't worry! The device automatically falls back to Access Point mode
 - Connect to WiFi network "abkant" with password "123456789"
-- Access the web interface at http://192.168.71.1 (typical AP IP)
+- Access the web interface at the IP shown in serial monitor (commonly 192.168.4.1)
 - If you want to connect to your network:
   - Check SSID and password in your configuration
   - Ensure 2.4GHz network (ESP32 doesn't support 5GHz)

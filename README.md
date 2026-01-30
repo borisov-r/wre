@@ -106,7 +106,7 @@ espflash flash --monitor target/xtensa-esp32-espidf/release/wre
    - **If connection fails:** The device automatically falls back to Access Point (AP) mode
      - AP SSID: `abkant`
      - AP Password: `123456789`
-     - Default IP: `192.168.71.1` (typical AP mode IP)
+     - Check the serial monitor for the AP IP address (commonly 192.168.4.1 or 192.168.71.1)
      - Connect your device to this WiFi network to access the web interface
 3. Open the IP address in your web browser
 4. Use the web interface to:
