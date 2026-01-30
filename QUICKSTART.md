@@ -117,6 +117,15 @@ sudo usermod -a -G dialout $USER
 # Log out and back in
 ```
 
+### Boot failures or "flash read err, 1000"
+If you see `rst:0x10 (RTCWDT_RTC_RESET)` or `flash read err, 1000` after flashing:
+```bash
+# Erase flash and reflash with latest version
+espflash erase-flash /dev/ttyUSB0  # or your port
+cargo run --release
+```
+This error has been fixed in the current version. Make sure you're using the latest code from the repository.
+
 ### WiFi not connecting
 - Check SSID and password
 - Ensure 2.4GHz network (ESP32 doesn't support 5GHz)

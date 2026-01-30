@@ -594,6 +594,25 @@ ls /dev/cu.*
 
 ### ESP32 Won't Boot After Flash
 
+#### Error: "rst:0x10 (RTCWDT_RTC_RESET)" or "flash read err, 1000"
+This error indicates a flash read failure during boot. **This has been fixed in the current version** by using the TWO_OTA partition table instead of SINGLE_APP_LARGE.
+
+If you're using an older version or pre-built firmware from an earlier release:
+1. **Pull the latest code:**
+   ```bash
+   git pull origin main
+   ```
+2. **Rebuild and flash:**
+   ```bash
+   cargo clean
+   cargo build --release
+   cargo run --release
+   ```
+
+The TWO_OTA partition table properly handles larger binaries and prevents flash read errors.
+
+#### General Boot Issues
+
 1. **Power cycle:**
    - Unplug USB
    - Wait 5 seconds
