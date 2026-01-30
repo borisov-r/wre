@@ -1,6 +1,6 @@
 use crate::rotary::RotaryEncoderState;
 use embedded_svc::io::Write;
-use embedded_svc::wifi::{ClientConfiguration, Configuration};
+use embedded_svc::wifi::{AccessPointConfiguration, AuthMethod, ClientConfiguration, Configuration};
 use esp_idf_hal::modem::Modem;
 use esp_idf_svc::eventloop::EspSystemEventLoop;
 use esp_idf_svc::http::server::{Configuration as HttpConfig, EspHttpServer};
@@ -23,6 +23,37 @@ const WIFI_PASS: &str = match option_env!("WIFI_PASS") {
     None => "WIFI_PASS_NOT_SET",
 };
 
+// Default AP (Access Point) configuration for fallback mode
+// Note: These credentials are hardcoded as per requirements.
+// Password is 9 characters, which meets WPA2 minimum but is relatively weak.
+// In production, consider making these configurable or device-specific for better security.
+const AP_SSID: &str = "abkant";
+const AP_PASS: &str = "123456789";
+
+fn setup_ap_mode(wifi: &mut BlockingWifi<EspWifi<'static>>) -> anyhow::Result<std::net::Ipv4Addr> {
+    info!("Configuring Access Point mode...");
+    info!("AP SSID: {}", AP_SSID);
+    
+    wifi.set_configuration(&Configuration::AccessPoint(AccessPointConfiguration {
+        ssid: AP_SSID.try_into().map_err(|_| anyhow::anyhow!("AP SSID too long"))?,
+        password: AP_PASS.try_into().map_err(|_| anyhow::anyhow!("AP password too long"))?,
+        auth_method: AuthMethod::WPA2Personal,
+        ..Default::default()
+    }))?;
+
+    info!("Starting Access Point...");
+    wifi.start()?;
+    
+    info!("Waiting for Access Point to be ready...");
+    wifi.wait_netif_up()?;
+    
+    let ip_info = wifi.wifi().ap_netif().get_ip_info()?;
+    info!("Access Point started! IP: {}", ip_info.ip);
+    info!("Connect to WiFi network '{}' to access the device", AP_SSID);
+    
+    Ok(ip_info.ip)
+}
+
 #[derive(Serialize, Deserialize)]
 struct SetAnglesRequest {
     angles: Vec<f32>,
@@ -43,13 +74,6 @@ pub fn start_webserver(
 ) -> anyhow::Result<()> {
     info!("Initializing WiFi...");
 
-    // Check if WiFi credentials are set
-    if WIFI_SSID == "WIFI_SSID_NOT_SET" || WIFI_PASS == "WIFI_PASS_NOT_SET" {
-        error!("WiFi credentials not set! Please set WIFI_SSID and WIFI_PASS environment variables.");
-        error!("Example: export WIFI_SSID='YourNetwork' && export WIFI_PASS='YourPassword'");
-        return Err(anyhow::anyhow!("WiFi credentials not configured"));
-    }
-
     let sysloop = EspSystemEventLoop::take()?;
     let nvs = EspDefaultNvsPartition::take()?;
 
@@ -58,23 +82,53 @@ pub fn start_webserver(
         sysloop,
     )?;
 
-    wifi.set_configuration(&Configuration::Client(ClientConfiguration {
-        ssid: WIFI_SSID.try_into().unwrap(),
-        password: WIFI_PASS.try_into().unwrap(),
-        ..Default::default()
-    }))?;
+    let ip_address;
 
-    info!("Starting WiFi...");
-    wifi.start()?;
+    // Helper function to fall back to AP mode
+    let mut fallback_to_ap = |wifi: &mut BlockingWifi<EspWifi<'static>>, reason: &str| -> anyhow::Result<std::net::Ipv4Addr> {
+        error!("{}", reason);
+        info!("Falling back to Access Point mode...");
+        // Stop WiFi if needed, ignoring errors as we're already in fallback mode
+        let _ = wifi.stop();
+        setup_ap_mode(wifi)
+    };
 
-    info!("Connecting to WiFi...");
-    wifi.connect()?;
+    // Try to connect to configured WiFi network (if credentials are set)
+    if WIFI_SSID != "WIFI_SSID_NOT_SET" && WIFI_PASS != "WIFI_PASS_NOT_SET" {
+        info!("Attempting to connect to WiFi network: {}", WIFI_SSID);
+        
+        wifi.set_configuration(&Configuration::Client(ClientConfiguration {
+            ssid: WIFI_SSID.try_into().map_err(|_| anyhow::anyhow!("WiFi SSID too long"))?,
+            password: WIFI_PASS.try_into().map_err(|_| anyhow::anyhow!("WiFi password too long"))?,
+            ..Default::default()
+        }))?;
 
-    info!("Waiting for IP address...");
-    wifi.wait_netif_up()?;
-
-    let ip_info = wifi.wifi().sta_netif().get_ip_info()?;
-    info!("WiFi connected! IP: {}", ip_info.ip);
+        wifi.start()?;
+        
+        // Try to connect with a timeout
+        match wifi.connect() {
+            Ok(_) => {
+                info!("Connected to WiFi network");
+                match wifi.wait_netif_up() {
+                    Ok(_) => {
+                        let ip_info = wifi.wifi().sta_netif().get_ip_info()?;
+                        info!("WiFi connected! IP: {}", ip_info.ip);
+                        ip_address = ip_info.ip;
+                    }
+                    Err(e) => {
+                        ip_address = fallback_to_ap(&mut wifi, &format!("Failed to get IP address: {:?}", e))?;
+                    }
+                }
+            }
+            Err(e) => {
+                ip_address = fallback_to_ap(&mut wifi, &format!("Failed to connect to WiFi network: {:?}", e))?;
+            }
+        }
+    } else {
+        // No WiFi credentials configured, start in AP mode
+        info!("No WiFi credentials configured, starting in Access Point mode...");
+        ip_address = setup_ap_mode(&mut wifi)?;
+    }
 
     // Start HTTP server
     let mut server = EspHttpServer::new(&HttpConfig::default())?;
@@ -146,7 +200,7 @@ pub fn start_webserver(
         Ok::<(), anyhow::Error>(())
     })?;
 
-    info!("Web server started at http://{}", ip_info.ip);
+    info!("Web server started at http://{}", ip_address);
     info!("Open this URL in your browser to control the encoder");
 
     // Keep the server running

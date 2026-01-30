@@ -49,12 +49,14 @@ GND               →    GND
 
 ## Step 3: Configure WiFi (1 minute)
 
+**Optional:** Configure WiFi credentials. If not set, the device will run in Access Point mode (SSID: "abkant", Password: "123456789").
+
 ```bash
 # Clone the repository
 git clone https://github.com/borisov-r/wre.git
 cd wre
 
-# Set WiFi credentials
+# Set WiFi credentials (optional)
 export WIFI_SSID="YourWiFiNetwork"
 export WIFI_PASS="YourWiFiPassword"
 
@@ -127,9 +129,13 @@ cargo run --release
 This error has been fixed in the current version. Make sure you're using the latest code from the repository.
 
 ### WiFi not connecting
-- Check SSID and password
-- Ensure 2.4GHz network (ESP32 doesn't support 5GHz)
-- Check serial monitor for error messages
+- Don't worry! The device automatically falls back to Access Point mode
+- Connect to WiFi network "abkant" with password "123456789"
+- Check the serial monitor for the AP IP address and navigate to it in your browser
+- If you want to connect to your network:
+  - Check SSID and password in your configuration
+  - Ensure 2.4GHz network (ESP32 doesn't support 5GHz)
+  - Check serial monitor for error messages
 
 ### Web interface not loading
 - Verify IP address from serial monitor
