@@ -25,6 +25,7 @@ const WIFI_PASS: &str = match option_env!("WIFI_PASS") {
 
 // Default AP (Access Point) configuration for fallback mode
 // Note: These credentials are hardcoded as per requirements.
+// Password is 9 characters, which meets WPA2 minimum but is relatively weak.
 // In production, consider making these configurable or device-specific for better security.
 const AP_SSID: &str = "abkant";
 const AP_PASS: &str = "123456789";
@@ -83,6 +84,15 @@ pub fn start_webserver(
 
     let ip_address;
 
+    // Helper function to fall back to AP mode
+    let mut fallback_to_ap = |wifi: &mut BlockingWifi<EspWifi<'static>>, reason: &str| -> anyhow::Result<std::net::Ipv4Addr> {
+        error!("{}", reason);
+        info!("Falling back to Access Point mode...");
+        // Stop WiFi if needed, ignoring errors as we're already in fallback mode
+        let _ = wifi.stop();
+        setup_ap_mode(wifi)
+    };
+
     // Try to connect to configured WiFi network (if credentials are set)
     if WIFI_SSID != "WIFI_SSID_NOT_SET" && WIFI_PASS != "WIFI_PASS_NOT_SET" {
         info!("Attempting to connect to WiFi network: {}", WIFI_SSID);
@@ -106,18 +116,12 @@ pub fn start_webserver(
                         ip_address = ip_info.ip;
                     }
                     Err(e) => {
-                        error!("Failed to get IP address: {:?}", e);
-                        info!("Falling back to Access Point mode...");
-                        wifi.stop()?;
-                        ip_address = setup_ap_mode(&mut wifi)?;
+                        ip_address = fallback_to_ap(&mut wifi, &format!("Failed to get IP address: {:?}", e))?;
                     }
                 }
             }
             Err(e) => {
-                error!("Failed to connect to WiFi network: {:?}", e);
-                info!("Falling back to Access Point mode...");
-                wifi.stop()?;
-                ip_address = setup_ap_mode(&mut wifi)?;
+                ip_address = fallback_to_ap(&mut wifi, &format!("Failed to connect to WiFi network: {:?}", e))?;
             }
         }
     } else {
