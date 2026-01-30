@@ -22,6 +22,9 @@ This project implements a wireless rotary encoder control system for ESP32, rewr
 - **Dual-Core Architecture**: 
   - Core 0: HTTP server with REST API for real-time updates
   - Core 1: Dedicated rotary encoder processing with interrupt handling
+- **WiFi Connectivity**: 
+  - Client mode: Connects to your existing WiFi network
+  - Automatic AP fallback: If connection fails, device creates its own WiFi network (SSID: "abkant", Password: "123456789")
 - **Web Interface**: Beautiful, responsive UI to control and monitor the encoder
 - **Real-time Updates**: Status polling (200ms intervals) to track encoder position and output state
 - **Configurable Targets**: Set multiple target angles dynamically
@@ -62,19 +65,25 @@ This project implements a wireless rotary encoder control system for ESP32, rewr
 2. **ESP-IDF** (automatically handled by esp-idf-sys)
 
 ## Configuration
-1. Copy `cfg.toml` to `cfg.toml.local` (ignored by git)
-2. Edit `cfg.toml.local` and set your WiFi credentials:
+WiFi credentials are optional. If not provided or if the connection fails, the device automatically falls back to Access Point mode.
+
+1. **Option 1:** Copy `cfg.toml` to `cfg.toml.local` (ignored by git) and set your WiFi credentials:
    ```toml
    [wre]
    wifi_ssid = "your_wifi_ssid"
    wifi_password = "your_wifi_password"
    ```
 
-3. Or set environment variables:
+2. **Option 2:** Set environment variables:
    ```bash
    export WIFI_SSID="your_wifi_ssid"
    export WIFI_PASS="your_wifi_password"
    ```
+
+3. **Option 3:** Leave credentials unset - The device will start in Access Point mode:
+   - SSID: `abkant`
+   - Password: `123456789`
+   - Connect your device to this network and access the web interface
 
 ## Building and Flashing
 ```bash
@@ -92,7 +101,13 @@ espflash flash --monitor target/xtensa-esp32-espidf/release/wre
 
 ## Usage
 1. Flash the firmware to your ESP32
-2. The device will connect to WiFi and display its IP address in the serial monitor
+2. The device will try to connect to your configured WiFi network
+   - **If connection succeeds:** The device IP address will be displayed in the serial monitor
+   - **If connection fails:** The device automatically falls back to Access Point (AP) mode
+     - AP SSID: `abkant`
+     - AP Password: `123456789`
+     - Default IP: `192.168.71.1` (typical AP mode IP)
+     - Connect your device to this WiFi network to access the web interface
 3. Open the IP address in your web browser
 4. Use the web interface to:
    - Set target angles (e.g., "45, 90, 135, 180")
@@ -103,7 +118,7 @@ espflash flash --monitor target/xtensa-esp32-espidf/release/wre
 ## Architecture Details
 
 ### Core 0 (HTTP Server)
-- Handles WiFi connection
+- Handles WiFi connection (Client mode with automatic AP fallback)
 - Runs HTTP server with REST API
 - Serves web interface
 - Polls encoder state for real-time updates
