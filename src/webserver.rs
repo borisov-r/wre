@@ -68,6 +68,15 @@ struct StatusResponse {
     output_on: bool,
 }
 
+#[derive(Serialize)]
+struct DebugResponse {
+    clk_pin: bool,
+    dt_pin: bool,
+    state_machine: u8,
+    raw_value: i32,
+    angle: f32,
+}
+
 pub fn start_webserver(
     encoder_state: RotaryEncoderState,
     modem: Modem,
@@ -197,6 +206,57 @@ pub fn start_webserver(
         
         req.into_response(200, Some("OK"), &[("Content-Type", "application/json")])?
             .write_all(b"{\"status\":\"ok\"}")?;
+        Ok::<(), anyhow::Error>(())
+    })?;
+
+    // API: Set debug mode
+    let encoder_state_debug = encoder_state_handlers.clone();
+    server.fn_handler("/api/debug", embedded_svc::http::Method::Post, move |mut req| {
+        let mut buf = vec![0u8; 128];
+        let len = req.read(&mut buf)?;
+        
+        match serde_json::from_slice::<serde_json::Value>(&buf[..len]) {
+            Ok(json) => {
+                if let Some(enabled) = json.get("enabled").and_then(|v| v.as_bool()) {
+                    info!("Setting debug mode: {}", enabled);
+                    encoder_state_debug.set_debug_mode(enabled);
+                    
+                    req.into_response(200, Some("OK"), &[("Content-Type", "application/json")])?
+                        .write_all(b"{\"status\":\"ok\"}")?;
+                } else {
+                    req.into_response(400, Some("Bad Request"), &[("Content-Type", "application/json")])?
+                        .write_all(b"{\"status\":\"error\",\"message\":\"Missing or invalid 'enabled' field\"}")?;
+                }
+            }
+            Err(e) => {
+                error!("Failed to parse debug request: {:?}", e);
+                let error_msg = format!(r#"{{"status":"error","message":"Invalid JSON: {}"}}"#, e);
+                req.into_response(400, Some("Bad Request"), &[("Content-Type", "application/json")])?
+                    .write_all(error_msg.as_bytes())?;
+            }
+        }
+        Ok::<(), anyhow::Error>(())
+    })?;
+
+    // API: Get debug info
+    let encoder_state_debug_info = encoder_state_handlers.clone();
+    server.fn_handler("/api/debug/info", embedded_svc::http::Method::Get, move |req| {
+        let (clk, dt, state, value, angle) = encoder_state_debug_info.get_debug_info();
+        let debug_info = DebugResponse {
+            clk_pin: clk,
+            dt_pin: dt,
+            state_machine: state,
+            raw_value: value,
+            angle,
+        };
+
+        let json = serde_json::to_string(&debug_info)
+            .unwrap_or_else(|e| {
+                error!("Failed to serialize debug info: {:?}", e);
+                r#"{"error":"serialization_failed"}"#.to_string()
+            });
+        req.into_response(200, Some("OK"), &[("Content-Type", "application/json")])?
+            .write_all(json.as_bytes())?;
         Ok::<(), anyhow::Error>(())
     })?;
 

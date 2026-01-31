@@ -1,5 +1,5 @@
 use std::sync::{Arc, Mutex};
-use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU8, Ordering};
 
 // Rotary encoder states for half-step operation
 const R_START: u8 = 0x0;
@@ -39,6 +39,10 @@ pub struct RotaryEncoderState {
     min_val: i32,
     max_val: i32,
     reverse: bool,
+    pub debug_mode: Arc<AtomicBool>,
+    pub last_clk_value: Arc<AtomicBool>,
+    pub last_dt_value: Arc<AtomicBool>,
+    pub last_state: Arc<AtomicU8>,
 }
 
 impl RotaryEncoderState {
@@ -55,6 +59,10 @@ impl RotaryEncoderState {
             min_val,
             max_val,
             reverse,
+            debug_mode: Arc::new(AtomicBool::new(false)),
+            last_clk_value: Arc::new(AtomicBool::new(false)),
+            last_dt_value: Arc::new(AtomicBool::new(false)),
+            last_state: Arc::new(AtomicU8::new(R_START)),
         }
     }
 
@@ -114,6 +122,23 @@ impl RotaryEncoderState {
             .expect("Current target index mutex poisoned")
     }
 
+    pub fn set_debug_mode(&self, enabled: bool) {
+        self.debug_mode.store(enabled, Ordering::SeqCst);
+    }
+
+    pub fn is_debug_mode(&self) -> bool {
+        self.debug_mode.load(Ordering::SeqCst)
+    }
+
+    pub fn get_debug_info(&self) -> (bool, bool, u8, i32, f32) {
+        let clk = self.last_clk_value.load(Ordering::SeqCst);
+        let dt = self.last_dt_value.load(Ordering::SeqCst);
+        let state = self.last_state.load(Ordering::SeqCst);
+        let value = self.get_value();
+        let angle = self.get_angle();
+        (clk, dt, state, value, angle)
+    }
+
     fn bound(&self, value: i32) -> i32 {
         if value < self.min_val {
             self.min_val
@@ -129,6 +154,10 @@ impl RotaryEncoderState {
     // during state transition. For even better performance, this could be
     // reimplemented using atomic state machine or lock-free algorithm.
     pub fn process_pins(&self, clk_value: bool, dt_value: bool) {
+        // Store pin values for debug mode
+        self.last_clk_value.store(clk_value, Ordering::SeqCst);
+        self.last_dt_value.store(dt_value, Ordering::SeqCst);
+
         let old_value = self.get_value();
         let clk_dt_pins = ((clk_value as u8) << 1) | (dt_value as u8);
 
@@ -136,6 +165,9 @@ impl RotaryEncoderState {
             .expect("State machine mutex poisoned");
         *state = TRANSITION_TABLE_HALF_STEP[(*state & STATE_MASK) as usize][clk_dt_pins as usize];
         let direction = *state & DIR_MASK;
+        
+        // Store state for debug mode
+        self.last_state.store(*state, Ordering::SeqCst);
 
         let mut incr = 0;
         if direction == DIR_CW {
