@@ -152,15 +152,20 @@ fn rotary_task(
             // Read pin states directly using low-level GPIO call
             let clk_current = unsafe { esp_idf_sys::gpio_get_level(clk_pin_num) != 0 };
             let dt_current = unsafe { esp_idf_sys::gpio_get_level(dt_pin_num) != 0 };
-            let (_, _, state, value, debug_angle) = encoder_state.get_debug_info();
+            let (isr_clk, isr_dt, state, value, debug_angle, isr_count, clk_dt_pins) = encoder_state.get_debug_info();
             
             // Log pin states continuously when in debug mode to help diagnose issues
-            info!("🔍 DEBUG (Live): CLK={} DT={} State=0x{:02X} Value={} Angle={:.1}°", 
+            // Show both live-read pins and ISR-captured pins for comparison
+            info!("🔍 DEBUG: Live[CLK={} DT={}] ISR[CLK={} DT={} Pins=0b{:02b}] State=0x{:02X} Value={} Angle={:.1}° ISR_Calls={}", 
                   if clk_current { 1 } else { 0 },
                   if dt_current { 1 } else { 0 },
+                  if isr_clk { 1 } else { 0 },
+                  if isr_dt { 1 } else { 0 },
+                  clk_dt_pins,
                   state,
                   value,
-                  debug_angle);
+                  debug_angle,
+                  isr_count);
         }
         
         if !encoder_state.is_active() {
@@ -193,14 +198,16 @@ fn rotary_task(
 
         // Print debug information to serial port when debug mode is enabled
         if encoder_state.is_debug_mode() {
-            let (clk, dt, state, value, debug_angle) = encoder_state.get_debug_info();
-            info!("🔍 DEBUG: CLK={} DT={} State=0x{:02X} Value={} Angle={:.1}° Target={:.1}°", 
-                  if clk { 1 } else { 0 },
-                  if dt { 1 } else { 0 },
+            let (isr_clk, isr_dt, state, value, debug_angle, isr_count, clk_dt_pins) = encoder_state.get_debug_info();
+            info!("🔍 DEBUG (Active): ISR[CLK={} DT={} Pins=0b{:02b}] State=0x{:02X} Value={} Angle={:.1}° Target={:.1}° ISR_Calls={}", 
+                  if isr_clk { 1 } else { 0 },
+                  if isr_dt { 1 } else { 0 },
+                  clk_dt_pins,
                   state,
                   value,
                   debug_angle,
-                  target_angle);
+                  target_angle,
+                  isr_count);
         }
 
         // Trigger output when reaching target (moving forward from 0)
