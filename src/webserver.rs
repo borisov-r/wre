@@ -241,7 +241,7 @@ pub fn start_webserver(
     // API: Get debug info
     let encoder_state_debug_info = encoder_state_handlers.clone();
     server.fn_handler("/api/debug/info", embedded_svc::http::Method::Get, move |req| {
-        let (clk, dt, state, value, angle) = encoder_state_debug_info.get_debug_info();
+        let (clk, dt, state, value, angle, _isr_count, _clk_dt_pins) = encoder_state_debug_info.get_debug_info();
         let debug_info = DebugResponse {
             clk_pin: clk,
             dt_pin: dt,

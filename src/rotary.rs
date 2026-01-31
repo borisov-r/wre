@@ -180,7 +180,7 @@ impl RotaryEncoderState {
 
         let mut state = self.state.lock()
             .expect("State machine mutex poisoned");
-        let old_state = *state;
+        let _old_state = *state;
         *state = TRANSITION_TABLE_HALF_STEP[(*state & STATE_MASK) as usize][clk_dt_pins as usize];
         let direction = *state & DIR_MASK;
         
