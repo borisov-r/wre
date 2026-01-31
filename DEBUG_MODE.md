@@ -81,6 +81,16 @@ The state machine also includes direction flags:
 ### Issue: Encoder not responding
 - Check if CLK and DT pins are changing when you rotate the encoder
 - If pins don't change, check physical connections
+- **New**: See `GPIO_PIN_FIX.md` for detailed troubleshooting if pins don't respond
+- Verify initial pin states show HIGH (1) with pull-ups enabled
+
+### Issue: Pins always show same value (not changing)
+- Enable debug mode and observe "🔍 DEBUG (Live)" messages
+- Pins should alternate between 0 and 1 when rotating encoder
+- If pins stay constant:
+  - Check encoder wiring (CLK=GPIO21, DT=GPIO22, GND)
+  - Verify encoder is working (test with multimeter)
+  - See `GPIO_PIN_FIX.md` for comprehensive diagnostics
 
 ### Issue: Encoder direction is reversed
 - The code has a `reverse` flag (currently set to `true`)
