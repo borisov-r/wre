@@ -84,6 +84,34 @@ fn rotary_task(
     dt.set_pull(Pull::Up)?;
     dt.set_interrupt_type(InterruptType::AnyEdge)?;
 
+    // Pin numbers for low-level GPIO operations
+    let clk_pin_num = 21;
+    let dt_pin_num = 22;
+
+    // Additional low-level GPIO configuration to ensure pull-ups are enabled
+    // This is a belt-and-suspenders approach to ensure GPIO is configured correctly
+    unsafe {
+        // Set GPIO direction to input
+        esp_idf_sys::gpio_set_direction(clk_pin_num, esp_idf_sys::gpio_mode_t_GPIO_MODE_INPUT);
+        esp_idf_sys::gpio_set_direction(dt_pin_num, esp_idf_sys::gpio_mode_t_GPIO_MODE_INPUT);
+        
+        // Explicitly enable pull-up resistors
+        esp_idf_sys::gpio_set_pull_mode(clk_pin_num, esp_idf_sys::gpio_pull_mode_t_GPIO_PULLUP_ONLY);
+        esp_idf_sys::gpio_set_pull_mode(dt_pin_num, esp_idf_sys::gpio_pull_mode_t_GPIO_PULLUP_ONLY);
+        
+        info!("✓ GPIO pins explicitly configured as INPUT with PULL-UP");
+    }
+
+    // Verify pin configuration by reading initial states
+    // With pull-up resistors, pins should read HIGH (true) when not connected or encoder is idle
+    let clk_initial = clk.is_high();
+    let dt_initial = dt.is_high();
+    info!("📌 Pin configuration verified - CLK initial state: {} ({}), DT initial state: {} ({})", 
+          if clk_initial { "HIGH" } else { "LOW" },
+          if clk_initial { "1" } else { "0" },
+          if dt_initial { "HIGH" } else { "LOW" },
+          if dt_initial { "1" } else { "0" });
+
     // Set up output pin
     let mut output = PinDriver::output(output_pin)?;
     output.set_low()?;
@@ -92,35 +120,64 @@ fn rotary_task(
     let encoder_state_isr = encoder_state.clone();
 
     // Set up interrupt handlers
-    let clk_pin_num = 21;
-    let dt_pin_num = 22;
-
+    // IMPORTANT: Must keep subscription handles alive, otherwise interrupts are unregistered
+    let _clk_subscription;
+    let _dt_subscription;
+    
     unsafe {
-        clk.subscribe({
+        _clk_subscription = clk.subscribe({
             let encoder_state = encoder_state_isr.clone();
+            let clk_num = clk_pin_num;  // Explicitly capture for closure
+            let dt_num = dt_pin_num;    // Explicitly capture for closure
             
             move || {
                 // Read both pin states
-                let clk_val = esp_idf_sys::gpio_get_level(clk_pin_num) != 0;
-                let dt_val = esp_idf_sys::gpio_get_level(dt_pin_num) != 0;
+                let clk_val = esp_idf_sys::gpio_get_level(clk_num) != 0;
+                let dt_val = esp_idf_sys::gpio_get_level(dt_num) != 0;
                 encoder_state.process_pins(clk_val, dt_val);
             }
         })?;
 
-        dt.subscribe({
+        _dt_subscription = dt.subscribe({
             let encoder_state = encoder_state_isr.clone();
+            let clk_num = clk_pin_num;  // Explicitly capture for closure
+            let dt_num = dt_pin_num;    // Explicitly capture for closure
             
             move || {
                 // Read both pin states
-                let clk_val = esp_idf_sys::gpio_get_level(clk_pin_num) != 0;
-                let dt_val = esp_idf_sys::gpio_get_level(dt_pin_num) != 0;
+                let clk_val = esp_idf_sys::gpio_get_level(clk_num) != 0;
+                let dt_val = esp_idf_sys::gpio_get_level(dt_num) != 0;
                 encoder_state.process_pins(clk_val, dt_val);
             }
         })?;
     }
+    
+    info!("✓ Interrupt handlers subscribed for GPIO {} (CLK) and GPIO {} (DT)", clk_pin_num, dt_pin_num);
 
     // Main rotary encoder loop
     loop {
+        // In debug mode, always read and display current pin states even when not active
+        // This helps diagnose if pins are responding to encoder rotation
+        if encoder_state.is_debug_mode() {
+            // Read pin states directly using low-level GPIO call
+            let clk_current = unsafe { esp_idf_sys::gpio_get_level(clk_pin_num) != 0 };
+            let dt_current = unsafe { esp_idf_sys::gpio_get_level(dt_pin_num) != 0 };
+            let (isr_clk, isr_dt, state, value, debug_angle, isr_count, clk_dt_pins) = encoder_state.get_debug_info();
+            
+            // Log pin states continuously when in debug mode to help diagnose issues
+            // Show both live-read pins and ISR-captured pins for comparison
+            info!("🔍 DEBUG: Live[CLK={} DT={}] ISR[CLK={} DT={} Pins=0b{:02b}] State=0x{:02X} Value={} Angle={:.1}° ISR_Calls={}", 
+                  if clk_current { 1 } else { 0 },
+                  if dt_current { 1 } else { 0 },
+                  if isr_clk { 1 } else { 0 },
+                  if isr_dt { 1 } else { 0 },
+                  clk_dt_pins,
+                  state,
+                  value,
+                  debug_angle,
+                  isr_count);
+        }
+        
         if !encoder_state.is_active() {
             thread::sleep(Duration::from_millis(200));
             continue;
@@ -148,6 +205,20 @@ fn rotary_task(
         let steps = encoder_state.get_value();
         let angle = steps as f32 / 2.0;
         let target_angle = target as f32 / 2.0;
+
+        // Print debug information to serial port when debug mode is enabled
+        if encoder_state.is_debug_mode() {
+            let (isr_clk, isr_dt, state, value, debug_angle, isr_count, clk_dt_pins) = encoder_state.get_debug_info();
+            info!("🔍 DEBUG (Active): ISR[CLK={} DT={} Pins=0b{:02b}] State=0x{:02X} Value={} Angle={:.1}° Target={:.1}° ISR_Calls={}", 
+                  if isr_clk { 1 } else { 0 },
+                  if isr_dt { 1 } else { 0 },
+                  clk_dt_pins,
+                  state,
+                  value,
+                  debug_angle,
+                  target_angle,
+                  isr_count);
+        }
 
         // Trigger output when reaching target (moving forward from 0)
         if !encoder_state.triggered.load(std::sync::atomic::Ordering::SeqCst) 
