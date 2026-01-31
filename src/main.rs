@@ -84,6 +84,30 @@ fn rotary_task(
     dt.set_pull(Pull::Up)?;
     dt.set_interrupt_type(InterruptType::AnyEdge)?;
 
+    // Additional low-level GPIO configuration to ensure pull-ups are enabled
+    // This is a belt-and-suspenders approach to ensure GPIO is configured correctly
+    unsafe {
+        // Set GPIO direction to input
+        esp_idf_sys::gpio_set_direction(clk_pin_num, esp_idf_sys::gpio_mode_t_GPIO_MODE_INPUT);
+        esp_idf_sys::gpio_set_direction(dt_pin_num, esp_idf_sys::gpio_mode_t_GPIO_MODE_INPUT);
+        
+        // Explicitly enable pull-up resistors
+        esp_idf_sys::gpio_set_pull_mode(clk_pin_num, esp_idf_sys::gpio_pull_mode_t_GPIO_PULLUP_ONLY);
+        esp_idf_sys::gpio_set_pull_mode(dt_pin_num, esp_idf_sys::gpio_pull_mode_t_GPIO_PULLUP_ONLY);
+        
+        info!("✓ GPIO pins explicitly configured as INPUT with PULL-UP");
+    }
+
+    // Verify pin configuration by reading initial states
+    // With pull-up resistors, pins should read HIGH (true) when not connected or encoder is idle
+    let clk_initial = clk.is_high();
+    let dt_initial = dt.is_high();
+    info!("📌 Pin configuration verified - CLK initial state: {} ({}), DT initial state: {} ({})", 
+          if clk_initial { "HIGH" } else { "LOW" },
+          if clk_initial { "1" } else { "0" },
+          if dt_initial { "HIGH" } else { "LOW" },
+          if dt_initial { "1" } else { "0" });
+
     // Set up output pin
     let mut output = PinDriver::output(output_pin)?;
     output.set_low()?;
@@ -121,6 +145,23 @@ fn rotary_task(
 
     // Main rotary encoder loop
     loop {
+        // In debug mode, always read and display current pin states even when not active
+        // This helps diagnose if pins are responding to encoder rotation
+        if encoder_state.is_debug_mode() {
+            // Read pin states directly using low-level GPIO call
+            let clk_current = unsafe { esp_idf_sys::gpio_get_level(clk_pin_num) != 0 };
+            let dt_current = unsafe { esp_idf_sys::gpio_get_level(dt_pin_num) != 0 };
+            let (_, _, state, value, debug_angle) = encoder_state.get_debug_info();
+            
+            // Log pin states continuously when in debug mode to help diagnose issues
+            info!("🔍 DEBUG (Live): CLK={} DT={} State=0x{:02X} Value={} Angle={:.1}°", 
+                  if clk_current { 1 } else { 0 },
+                  if dt_current { 1 } else { 0 },
+                  state,
+                  value,
+                  debug_angle);
+        }
+        
         if !encoder_state.is_active() {
             thread::sleep(Duration::from_millis(200));
             continue;
