@@ -2,7 +2,7 @@
 
 ## Overview
 
-A debug mode has been added to help diagnose issues with the rotary encoder. This feature allows you to see the real-time state of the encoder pins and internal state machine.
+A debug mode has been added to help diagnose issues with the rotary encoder. This feature allows you to see the real-time state of the encoder pins and internal state machine both in the web interface and via serial port output.
 
 ## Features
 
@@ -18,11 +18,24 @@ When debug mode is enabled, the following information is displayed:
 
 ### How to Use
 
+#### Web Interface
 1. Open the web interface in your browser
 2. Click the "🔍 Toggle Debug Mode" button
 3. A yellow debug section will appear showing real-time encoder information
 4. Rotate the encoder and observe the pin states and values
 5. Click the button again to hide the debug section
+
+#### Serial Port Monitor
+When debug mode is enabled, debug information is also printed to the serial port every 50ms during active encoder operation. Connect a serial monitor at 115200 baud to see output like:
+
+```
+🔍 DEBUG: CLK=1 DT=0 State=0x02 Value=180 Angle=90.0° Target=90.0°
+```
+
+This allows you to monitor encoder behavior without a web browser, which is useful for:
+- Initial setup and testing
+- Diagnosing issues when the web interface is not accessible
+- Monitoring encoder behavior during development
 
 ## API Endpoints
 

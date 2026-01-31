@@ -94,7 +94,7 @@ pub fn start_webserver(
     let ip_address;
 
     // Helper function to fall back to AP mode
-    let mut fallback_to_ap = |wifi: &mut BlockingWifi<EspWifi<'static>>, reason: &str| -> anyhow::Result<std::net::Ipv4Addr> {
+    let fallback_to_ap = |wifi: &mut BlockingWifi<EspWifi<'static>>, reason: &str| -> anyhow::Result<std::net::Ipv4Addr> {
         error!("{}", reason);
         info!("Falling back to Access Point mode...");
         // Stop WiFi if needed, ignoring errors as we're already in fallback mode

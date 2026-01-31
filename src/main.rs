@@ -149,6 +149,18 @@ fn rotary_task(
         let angle = steps as f32 / 2.0;
         let target_angle = target as f32 / 2.0;
 
+        // Print debug information to serial port when debug mode is enabled
+        if encoder_state.is_debug_mode() {
+            let (clk, dt, state, value, debug_angle) = encoder_state.get_debug_info();
+            info!("🔍 DEBUG: CLK={} DT={} State=0x{:02X} Value={} Angle={:.1}° Target={:.1}°", 
+                  if clk { 1 } else { 0 },
+                  if dt { 1 } else { 0 },
+                  state,
+                  value,
+                  debug_angle,
+                  target_angle);
+        }
+
         // Trigger output when reaching target (moving forward from 0)
         if !encoder_state.triggered.load(std::sync::atomic::Ordering::SeqCst) 
             && steps >= target {
