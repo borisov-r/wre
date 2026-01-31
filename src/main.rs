@@ -84,6 +84,10 @@ fn rotary_task(
     dt.set_pull(Pull::Up)?;
     dt.set_interrupt_type(InterruptType::AnyEdge)?;
 
+    // Pin numbers for low-level GPIO operations
+    let clk_pin_num = 21;
+    let dt_pin_num = 22;
+
     // Additional low-level GPIO configuration to ensure pull-ups are enabled
     // This is a belt-and-suspenders approach to ensure GPIO is configured correctly
     unsafe {
@@ -116,9 +120,6 @@ fn rotary_task(
     let encoder_state_isr = encoder_state.clone();
 
     // Set up interrupt handlers
-    let clk_pin_num = 21;
-    let dt_pin_num = 22;
-
     unsafe {
         clk.subscribe({
             let encoder_state = encoder_state_isr.clone();
