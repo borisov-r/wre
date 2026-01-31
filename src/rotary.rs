@@ -123,17 +123,17 @@ impl RotaryEncoderState {
     }
 
     pub fn set_debug_mode(&self, enabled: bool) {
-        self.debug_mode.store(enabled, Ordering::SeqCst);
+        self.debug_mode.store(enabled, Ordering::Release);
     }
 
     pub fn is_debug_mode(&self) -> bool {
-        self.debug_mode.load(Ordering::SeqCst)
+        self.debug_mode.load(Ordering::Acquire)
     }
 
     pub fn get_debug_info(&self) -> (bool, bool, u8, i32, f32) {
-        let clk = self.last_clk_value.load(Ordering::SeqCst);
-        let dt = self.last_dt_value.load(Ordering::SeqCst);
-        let state = self.last_state.load(Ordering::SeqCst);
+        let clk = self.last_clk_value.load(Ordering::Relaxed);
+        let dt = self.last_dt_value.load(Ordering::Relaxed);
+        let state = self.last_state.load(Ordering::Relaxed);
         let value = self.get_value();
         let angle = self.get_angle();
         (clk, dt, state, value, angle)
@@ -154,9 +154,14 @@ impl RotaryEncoderState {
     // during state transition. For even better performance, this could be
     // reimplemented using atomic state machine or lock-free algorithm.
     pub fn process_pins(&self, clk_value: bool, dt_value: bool) {
-        // Store pin values for debug mode
-        self.last_clk_value.store(clk_value, Ordering::SeqCst);
-        self.last_dt_value.store(dt_value, Ordering::SeqCst);
+        // Check debug mode once to avoid multiple atomic loads in ISR
+        let debug_enabled = self.debug_mode.load(Ordering::Acquire);
+        
+        // Store pin values for debug mode (only if debug mode is enabled)
+        if debug_enabled {
+            self.last_clk_value.store(clk_value, Ordering::Relaxed);
+            self.last_dt_value.store(dt_value, Ordering::Relaxed);
+        }
 
         let old_value = self.get_value();
         let clk_dt_pins = ((clk_value as u8) << 1) | (dt_value as u8);
@@ -166,8 +171,10 @@ impl RotaryEncoderState {
         *state = TRANSITION_TABLE_HALF_STEP[(*state & STATE_MASK) as usize][clk_dt_pins as usize];
         let direction = *state & DIR_MASK;
         
-        // Store state for debug mode
-        self.last_state.store(*state, Ordering::SeqCst);
+        // Store state for debug mode (only if debug mode is enabled)
+        if debug_enabled {
+            self.last_state.store(*state, Ordering::Relaxed);
+        }
 
         let mut incr = 0;
         if direction == DIR_CW {

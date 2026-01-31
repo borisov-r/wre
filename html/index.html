@@ -313,6 +313,7 @@
     <script>
         let updateInterval;
         let debugMode = false;
+        const HEX_PADDING_WIDTH = 2;
         
         function updateStatus() {
             fetch('/api/status')
@@ -361,7 +362,7 @@
                 .then(data => {
                     document.getElementById('debugClk').textContent = data.clk_pin ? 'HIGH (1)' : 'LOW (0)';
                     document.getElementById('debugDt').textContent = data.dt_pin ? 'HIGH (1)' : 'LOW (0)';
-                    document.getElementById('debugState').textContent = '0x' + data.state_machine.toString(16).toUpperCase().padStart(2, '0');
+                    document.getElementById('debugState').textContent = '0x' + data.state_machine.toString(16).toUpperCase().padStart(HEX_PADDING_WIDTH, '0');
                     document.getElementById('debugValue').textContent = data.raw_value;
                     document.getElementById('debugAngle').textContent = data.angle.toFixed(1) + '°';
                 })
@@ -389,7 +390,20 @@
                 },
                 body: JSON.stringify({ enabled: debugMode })
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    // Try to parse JSON error, but handle non-JSON responses
+                    return response.text().then(text => {
+                        try {
+                            const data = JSON.parse(text);
+                            throw new Error(data.message || 'Failed to set debug mode');
+                        } catch (e) {
+                            throw new Error('Failed to set debug mode: ' + response.statusText);
+                        }
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 console.log('Debug mode set:', debugMode);
                 if (debugMode) {
@@ -398,7 +412,7 @@
             })
             .catch(error => {
                 console.error('Error setting debug mode:', error);
-                alert('Error setting debug mode: ' + error);
+                alert('Error setting debug mode: ' + (error.message || error));
             });
         }
         
