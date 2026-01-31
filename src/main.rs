@@ -120,8 +120,12 @@ fn rotary_task(
     let encoder_state_isr = encoder_state.clone();
 
     // Set up interrupt handlers
+    // IMPORTANT: Must keep subscription handles alive, otherwise interrupts are unregistered
+    let _clk_subscription;
+    let _dt_subscription;
+    
     unsafe {
-        clk.subscribe({
+        _clk_subscription = clk.subscribe({
             let encoder_state = encoder_state_isr.clone();
             let clk_num = clk_pin_num;  // Explicitly capture for closure
             let dt_num = dt_pin_num;    // Explicitly capture for closure
@@ -134,7 +138,7 @@ fn rotary_task(
             }
         })?;
 
-        dt.subscribe({
+        _dt_subscription = dt.subscribe({
             let encoder_state = encoder_state_isr.clone();
             let clk_num = clk_pin_num;  // Explicitly capture for closure
             let dt_num = dt_pin_num;    // Explicitly capture for closure
