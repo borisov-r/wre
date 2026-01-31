@@ -123,26 +123,32 @@ fn rotary_task(
     unsafe {
         clk.subscribe({
             let encoder_state = encoder_state_isr.clone();
+            let clk_num = clk_pin_num;  // Explicitly capture for closure
+            let dt_num = dt_pin_num;    // Explicitly capture for closure
             
             move || {
                 // Read both pin states
-                let clk_val = esp_idf_sys::gpio_get_level(clk_pin_num) != 0;
-                let dt_val = esp_idf_sys::gpio_get_level(dt_pin_num) != 0;
+                let clk_val = esp_idf_sys::gpio_get_level(clk_num) != 0;
+                let dt_val = esp_idf_sys::gpio_get_level(dt_num) != 0;
                 encoder_state.process_pins(clk_val, dt_val);
             }
         })?;
 
         dt.subscribe({
             let encoder_state = encoder_state_isr.clone();
+            let clk_num = clk_pin_num;  // Explicitly capture for closure
+            let dt_num = dt_pin_num;    // Explicitly capture for closure
             
             move || {
                 // Read both pin states
-                let clk_val = esp_idf_sys::gpio_get_level(clk_pin_num) != 0;
-                let dt_val = esp_idf_sys::gpio_get_level(dt_pin_num) != 0;
+                let clk_val = esp_idf_sys::gpio_get_level(clk_num) != 0;
+                let dt_val = esp_idf_sys::gpio_get_level(dt_num) != 0;
                 encoder_state.process_pins(clk_val, dt_val);
             }
         })?;
     }
+    
+    info!("✓ Interrupt handlers subscribed for GPIO {} (CLK) and GPIO {} (DT)", clk_pin_num, dt_pin_num);
 
     // Main rotary encoder loop
     loop {
