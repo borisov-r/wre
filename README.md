@@ -51,11 +51,12 @@ This project implements a wireless rotary encoder control system for ESP32, rewr
 ### Option 1: Docker (Recommended for Quick Setup)
 Use Docker to build with all dependencies pre-installed:
 ```bash
-# Build the Docker image
-docker build -t wre-builder --build-arg WIFI_SSID="your_ssid" --build-arg WIFI_PASS="your_pass" .
+# Using the build script (easiest)
+./docker-build.sh -s "your_ssid" -p "your_pass"
 
-# Build the firmware
-docker run --rm -v $(pwd)/target:/project/target wre-builder
+# Or manually with docker
+docker build -t wre-builder .
+docker run --rm -e WIFI_SSID="your_ssid" -e WIFI_PASS="your_pass" -v $(pwd):/project wre-builder
 ```
 
 See the [Docker Guide](DOCKER.md) for detailed instructions.

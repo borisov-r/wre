@@ -29,33 +29,35 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 # Install Rust components needed for ESP32
 RUN rustup component add rust-src
 
-# Install espup and set up ESP Rust toolchain
-RUN cargo install espup && \
-    espup install && \
-    cargo install ldproxy
+# Install espup
+RUN cargo install espup
 
-# Source ESP environment variables in all shells
-ENV LIBCLANG_PATH="/root/.rustup/toolchains/esp/xtensa-esp32-elf-clang/esp-16.0.0-20230516/esp-clang/lib"
-ENV PATH="/root/.rustup/toolchains/esp/xtensa-esp32-elf/esp-13.2.0_20230928/xtensa-esp32-elf/bin:${PATH}"
-ENV IDF_TOOLS_PATH="/root/.espressif"
+# Install ldproxy
+RUN cargo install ldproxy
+
+# Set up ESP Rust toolchain
+# This step is run when the container starts to avoid GitHub API rate limits during image build
+# You can also set this up manually with: docker run ... /bin/bash -c "espup install && cargo build --release"
 
 # Set working directory
 WORKDIR /project
 
-# Set default WiFi credentials (can be overridden at build time)
+# Set default WiFi credentials (can be overridden at build/run time)
 ENV WIFI_SSID="your_wifi_ssid"
 ENV WIFI_PASS="your_wifi_password"
 
-# Copy the project files
-COPY . .
-
-# Build the project
-# Note: WiFi credentials can be passed as build arguments
-ARG WIFI_SSID
-ARG WIFI_PASS
-ENV WIFI_SSID=${WIFI_SSID:-your_wifi_ssid}
-ENV WIFI_PASS=${WIFI_PASS:-your_wifi_password}
-
-# The default command builds the release binary
-# The output will be at /project/target/xtensa-esp32-espidf/release/wre
-CMD ["/bin/bash", "-c", "source $HOME/export-esp.sh && cargo build --release && echo '\n=== Build Complete ===' && echo 'Release binary location:' && ls -lh target/xtensa-esp32-espidf/release/wre"]
+# Build the project when container runs
+# The default command sets up ESP toolchain if needed, then builds
+CMD ["/bin/bash", "-c", "\
+    echo 'Setting up ESP Rust toolchain...' && \
+    (test -f $HOME/export-esp.sh || espup install) && \
+    source $HOME/export-esp.sh && \
+    echo 'Building WRE firmware...' && \
+    cargo build --release && \
+    echo '' && \
+    echo '=== Build Complete ===' && \
+    echo 'Release binary location:' && \
+    ls -lh target/xtensa-esp32-espidf/release/wre && \
+    echo '' && \
+    echo 'To flash: espflash flash --monitor target/xtensa-esp32-espidf/release/wre'\
+"]
