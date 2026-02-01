@@ -1,0 +1,32 @@
+# Build artifacts
+target/
+.cargo/registry
+.cargo/git
+
+# Git
+.git/
+.github/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.local
+cfg.toml.local
+
+# Documentation (will be copied explicitly if needed)
+*.md
+
+# Temporary files
+/tmp/
+*.tmp
+*.bak
+
+# OS files
+.DS_Store
+Thumbs.db
