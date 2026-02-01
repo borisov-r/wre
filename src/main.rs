@@ -116,42 +116,67 @@ fn rotary_task(
     let mut output = PinDriver::output(output_pin)?;
     output.set_low()?;
 
+    // ============================================================================
+    // INTERRUPT HANDLER SETUP - CRITICAL SECTION
+    // ============================================================================
+    // This section sets up interrupt handlers that fire when encoder pins change.
+    // If ISR_Calls stays at 0, there's likely a problem in this section.
+    // See HOW_IT_WORKS.md for detailed explanation.
+    
     // Create shared state for ISR
+    // The ISR needs access to encoder_state, so we clone it here
     let encoder_state_isr = encoder_state.clone();
 
-    // Set up interrupt handlers
-    // IMPORTANT: Must keep subscription handles alive, otherwise interrupts are unregistered
+    // CRITICAL: Declare subscription handle variables
+    // These MUST remain alive for interrupts to work!
+    // When these variables are dropped, the interrupts are automatically unregistered.
+    // The infinite loop below ensures they never drop.
     let _clk_subscription;
     let _dt_subscription;
     
     unsafe {
+        // Subscribe to CLK pin interrupts (GPIO 21)
+        // The closure below runs every time CLK pin changes (LOW→HIGH or HIGH→LOW)
         _clk_subscription = clk.subscribe({
+            // Clone state for this closure (each closure needs its own reference)
             let encoder_state = encoder_state_isr.clone();
-            let clk_num = clk_pin_num;  // Explicitly capture for closure
-            let dt_num = dt_pin_num;    // Explicitly capture for closure
             
+            // CRITICAL: Explicitly capture pin numbers in closure scope
+            // These must be captured here, not used directly from outer scope
+            let clk_num = clk_pin_num;  // GPIO 21
+            let dt_num = dt_pin_num;    // GPIO 22
+            
+            // This closure is the actual ISR (Interrupt Service Routine)
             move || {
-                // Read both pin states
+                // Read BOTH pin states (state machine needs both pins)
                 let clk_val = esp_idf_sys::gpio_get_level(clk_num) != 0;
                 let dt_val = esp_idf_sys::gpio_get_level(dt_num) != 0;
+                
+                // Update state machine (this increments ISR_Calls counter)
                 encoder_state.process_pins(clk_val, dt_val);
             }
         })?;
 
+        // Subscribe to DT pin interrupts (GPIO 22)
+        // Same pattern as CLK subscription above
         _dt_subscription = dt.subscribe({
             let encoder_state = encoder_state_isr.clone();
-            let clk_num = clk_pin_num;  // Explicitly capture for closure
-            let dt_num = dt_pin_num;    // Explicitly capture for closure
+            let clk_num = clk_pin_num;  // Explicitly capture
+            let dt_num = dt_pin_num;    // Explicitly capture
             
             move || {
                 // Read both pin states
                 let clk_val = esp_idf_sys::gpio_get_level(clk_num) != 0;
                 let dt_val = esp_idf_sys::gpio_get_level(dt_num) != 0;
+                
+                // Update state machine
                 encoder_state.process_pins(clk_val, dt_val);
             }
         })?;
     }
     
+    // If you see this message but ISR_Calls=0, the subscription succeeded
+    // but interrupts might be immediately unregistered (handle dropped)
     info!("✓ Interrupt handlers subscribed for GPIO {} (CLK) and GPIO {} (DT)", clk_pin_num, dt_pin_num);
 
     // Main rotary encoder loop
