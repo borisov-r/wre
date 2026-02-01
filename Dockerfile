@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y \
     libpython3-dev \
     python3 \
     python3-pip \
+    python3-venv \
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
