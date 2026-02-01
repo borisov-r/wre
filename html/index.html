@@ -190,6 +190,56 @@
             font-size: 12px;
             margin-top: 5px;
         }
+        
+        .debug-section {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .debug-section.active {
+            display: block;
+        }
+        
+        .debug-section h3 {
+            color: #856404;
+            font-size: 16px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .debug-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0e5c3;
+        }
+        
+        .debug-row:last-child {
+            border-bottom: none;
+        }
+        
+        .debug-label {
+            color: #856404;
+            font-weight: 500;
+            font-size: 13px;
+        }
+        
+        .debug-value {
+            color: #333;
+            font-weight: 600;
+            font-size: 13px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .btn-debug {
+            background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+            color: #333;
+            font-weight: 700;
+        }
     </style>
 </head>
 <body>
@@ -199,6 +249,30 @@
         
         <div id="connectionStatus" class="connection-status disconnected">
             ⚠️ Connecting...
+        </div>
+        
+        <div id="debugSection" class="debug-section">
+            <h3>🔍 Debug Information</h3>
+            <div class="debug-row">
+                <span class="debug-label">CLK Pin (GPIO21):</span>
+                <span class="debug-value" id="debugClk">-</span>
+            </div>
+            <div class="debug-row">
+                <span class="debug-label">DT Pin (GPIO22):</span>
+                <span class="debug-value" id="debugDt">-</span>
+            </div>
+            <div class="debug-row">
+                <span class="debug-label">State Machine:</span>
+                <span class="debug-value" id="debugState">-</span>
+            </div>
+            <div class="debug-row">
+                <span class="debug-label">Raw Value:</span>
+                <span class="debug-value" id="debugValue">-</span>
+            </div>
+            <div class="debug-row">
+                <span class="debug-label">Calculated Angle:</span>
+                <span class="debug-value" id="debugAngle">-</span>
+            </div>
         </div>
         
         <div class="status-card">
@@ -230,10 +304,16 @@
             <button class="btn-primary" onclick="setAngles()">▶️ Start</button>
             <button class="btn-danger" onclick="stopEncoder()">⏹️ Stop</button>
         </div>
+        
+        <div class="button-group" style="margin-top: 15px;">
+            <button class="btn-debug" onclick="toggleDebugMode()">🔍 Toggle Debug Mode</button>
+        </div>
     </div>
     
     <script>
         let updateInterval;
+        let debugMode = false;
+        const HEX_PADDING_WIDTH = 2;
         
         function updateStatus() {
             fetch('/api/status')
@@ -269,6 +349,71 @@
                     statusElem.className = 'connection-status disconnected';
                     statusElem.textContent = '❌ Connection Error';
                 });
+            
+            // Update debug info if debug mode is enabled
+            if (debugMode) {
+                updateDebugInfo();
+            }
+        }
+        
+        function updateDebugInfo() {
+            fetch('/api/debug/info')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('debugClk').textContent = data.clk_pin ? 'HIGH (1)' : 'LOW (0)';
+                    document.getElementById('debugDt').textContent = data.dt_pin ? 'HIGH (1)' : 'LOW (0)';
+                    document.getElementById('debugState').textContent = '0x' + data.state_machine.toString(16).toUpperCase().padStart(HEX_PADDING_WIDTH, '0');
+                    document.getElementById('debugValue').textContent = data.raw_value;
+                    document.getElementById('debugAngle').textContent = data.angle.toFixed(1) + '°';
+                })
+                .catch(error => {
+                    console.error('Error fetching debug info:', error);
+                });
+        }
+        
+        function toggleDebugMode() {
+            debugMode = !debugMode;
+            
+            // Update UI
+            const debugSection = document.getElementById('debugSection');
+            if (debugMode) {
+                debugSection.classList.add('active');
+            } else {
+                debugSection.classList.remove('active');
+            }
+            
+            // Send debug mode state to server
+            fetch('/api/debug', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ enabled: debugMode })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    // Try to parse JSON error, but handle non-JSON responses
+                    return response.text().then(text => {
+                        try {
+                            const data = JSON.parse(text);
+                            throw new Error(data.message || 'Failed to set debug mode');
+                        } catch (e) {
+                            throw new Error('Failed to set debug mode: ' + response.statusText);
+                        }
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Debug mode set:', debugMode);
+                if (debugMode) {
+                    updateDebugInfo();
+                }
+            })
+            .catch(error => {
+                console.error('Error setting debug mode:', error);
+                alert('Error setting debug mode: ' + (error.message || error));
+            });
         }
         
         function setAngles() {

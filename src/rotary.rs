@@ -1,5 +1,5 @@
 use std::sync::{Arc, Mutex};
-use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU8, AtomicU32, Ordering};
 
 // Rotary encoder states for half-step operation
 const R_START: u8 = 0x0;
@@ -39,6 +39,12 @@ pub struct RotaryEncoderState {
     min_val: i32,
     max_val: i32,
     reverse: bool,
+    pub debug_mode: Arc<AtomicBool>,
+    pub last_clk_value: Arc<AtomicBool>,
+    pub last_dt_value: Arc<AtomicBool>,
+    pub last_state: Arc<AtomicU8>,
+    pub isr_call_count: Arc<AtomicU32>,  // Counter to verify ISR is firing
+    pub last_clk_dt_pins: Arc<AtomicU8>, // Store the pin combination for debugging
 }
 
 impl RotaryEncoderState {
@@ -55,6 +61,12 @@ impl RotaryEncoderState {
             min_val,
             max_val,
             reverse,
+            debug_mode: Arc::new(AtomicBool::new(false)),
+            last_clk_value: Arc::new(AtomicBool::new(false)),
+            last_dt_value: Arc::new(AtomicBool::new(false)),
+            last_state: Arc::new(AtomicU8::new(R_START)),
+            isr_call_count: Arc::new(AtomicU32::new(0)),
+            last_clk_dt_pins: Arc::new(AtomicU8::new(0)),
         }
     }
 
@@ -114,6 +126,25 @@ impl RotaryEncoderState {
             .expect("Current target index mutex poisoned")
     }
 
+    pub fn set_debug_mode(&self, enabled: bool) {
+        self.debug_mode.store(enabled, Ordering::Release);
+    }
+
+    pub fn is_debug_mode(&self) -> bool {
+        self.debug_mode.load(Ordering::Acquire)
+    }
+
+    pub fn get_debug_info(&self) -> (bool, bool, u8, i32, f32, u32, u8) {
+        let clk = self.last_clk_value.load(Ordering::Relaxed);
+        let dt = self.last_dt_value.load(Ordering::Relaxed);
+        let state = self.last_state.load(Ordering::Relaxed);
+        let value = self.get_value();
+        let angle = self.get_angle();
+        let isr_count = self.isr_call_count.load(Ordering::Relaxed);
+        let clk_dt_pins = self.last_clk_dt_pins.load(Ordering::Relaxed);
+        (clk, dt, state, value, angle, isr_count, clk_dt_pins)
+    }
+
     fn bound(&self, value: i32) -> i32 {
         if value < self.min_val {
             self.min_val
@@ -129,13 +160,34 @@ impl RotaryEncoderState {
     // during state transition. For even better performance, this could be
     // reimplemented using atomic state machine or lock-free algorithm.
     pub fn process_pins(&self, clk_value: bool, dt_value: bool) {
-        let old_value = self.get_value();
+        // Increment ISR call counter (for debugging)
+        self.isr_call_count.fetch_add(1, Ordering::Relaxed);
+        
+        // Check debug mode once to avoid multiple atomic loads in ISR
+        let debug_enabled = self.debug_mode.load(Ordering::Acquire);
+        
+        // Calculate pin combination
         let clk_dt_pins = ((clk_value as u8) << 1) | (dt_value as u8);
+        
+        // Store pin values and combination for debug mode
+        if debug_enabled {
+            self.last_clk_value.store(clk_value, Ordering::Relaxed);
+            self.last_dt_value.store(dt_value, Ordering::Relaxed);
+            self.last_clk_dt_pins.store(clk_dt_pins, Ordering::Relaxed);
+        }
+
+        let old_value = self.get_value();
 
         let mut state = self.state.lock()
             .expect("State machine mutex poisoned");
+        let _old_state = *state;
         *state = TRANSITION_TABLE_HALF_STEP[(*state & STATE_MASK) as usize][clk_dt_pins as usize];
         let direction = *state & DIR_MASK;
+        
+        // Store state for debug mode (only if debug mode is enabled)
+        if debug_enabled {
+            self.last_state.store(*state, Ordering::Relaxed);
+        }
 
         let mut incr = 0;
         if direction == DIR_CW {
