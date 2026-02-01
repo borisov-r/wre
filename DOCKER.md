@@ -233,7 +233,7 @@ If Docker continues to have issues, consider using a [local build](README.md#sof
 ### Out of Disk Space
 
 The Docker image and build artifacts can use several GB of disk space:
-- Docker image: ~3-4 GB
+- Docker image: ~2.8 GB
 - Build artifacts: ~2-3 GB
 
 Clean up with:
@@ -302,11 +302,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build firmware
         run: |
-          docker build -t wre-builder \
-            --build-arg WIFI_SSID="${{ secrets.WIFI_SSID }}" \
-            --build-arg WIFI_PASS="${{ secrets.WIFI_PASS }}" \
-            .
-          docker run --rm -v $(pwd)/target:/project/target wre-builder
+          docker build -t wre-builder .
+          docker run --rm \
+            -e WIFI_SSID="${{ secrets.WIFI_SSID }}" \
+            -e WIFI_PASS="${{ secrets.WIFI_PASS }}" \
+            -v $(pwd):/project \
+            wre-builder
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
