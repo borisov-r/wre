@@ -134,46 +134,47 @@ fn rotary_task(
     let _clk_subscription;
     let _dt_subscription;
     
-    unsafe {
-        // Subscribe to CLK pin interrupts (GPIO 21)
-        // The closure below runs every time CLK pin changes (LOW→HIGH or HIGH→LOW)
-        _clk_subscription = clk.subscribe({
-            // Clone state for this closure (each closure needs its own reference)
-            let encoder_state = encoder_state_isr.clone();
+    // Subscribe to CLK pin interrupts (GPIO 21)
+    // The closure below runs every time CLK pin changes (LOW→HIGH or HIGH→LOW)
+    // NOTE: subscribe() itself is NOT unsafe - only gpio_get_level() calls inside need unsafe
+    _clk_subscription = clk.subscribe({
+        // Clone state for this closure (each closure needs its own reference)
+        let encoder_state = encoder_state_isr.clone();
+        
+        // CRITICAL: Explicitly capture pin numbers in closure scope
+        // These must be captured here, not used directly from outer scope
+        let clk_num = clk_pin_num;  // GPIO 21
+        let dt_num = dt_pin_num;    // GPIO 22
+        
+        // This closure is the actual ISR (Interrupt Service Routine)
+        move || {
+            // Read BOTH pin states (state machine needs both pins)
+            // SAFETY: gpio_get_level is unsafe but safe to call with valid pin numbers
+            let clk_val = unsafe { esp_idf_sys::gpio_get_level(clk_num) != 0 };
+            let dt_val = unsafe { esp_idf_sys::gpio_get_level(dt_num) != 0 };
             
-            // CRITICAL: Explicitly capture pin numbers in closure scope
-            // These must be captured here, not used directly from outer scope
-            let clk_num = clk_pin_num;  // GPIO 21
-            let dt_num = dt_pin_num;    // GPIO 22
-            
-            // This closure is the actual ISR (Interrupt Service Routine)
-            move || {
-                // Read BOTH pin states (state machine needs both pins)
-                let clk_val = esp_idf_sys::gpio_get_level(clk_num) != 0;
-                let dt_val = esp_idf_sys::gpio_get_level(dt_num) != 0;
-                
-                // Update state machine (this increments ISR_Calls counter)
-                encoder_state.process_pins(clk_val, dt_val);
-            }
-        })?;
+            // Update state machine (this increments ISR_Calls counter)
+            encoder_state.process_pins(clk_val, dt_val);
+        }
+    })?;
 
-        // Subscribe to DT pin interrupts (GPIO 22)
-        // Same pattern as CLK subscription above
-        _dt_subscription = dt.subscribe({
-            let encoder_state = encoder_state_isr.clone();
-            let clk_num = clk_pin_num;  // Explicitly capture
-            let dt_num = dt_pin_num;    // Explicitly capture
+    // Subscribe to DT pin interrupts (GPIO 22)
+    // Same pattern as CLK subscription above
+    _dt_subscription = dt.subscribe({
+        let encoder_state = encoder_state_isr.clone();
+        let clk_num = clk_pin_num;  // Explicitly capture
+        let dt_num = dt_pin_num;    // Explicitly capture
+        
+        move || {
+            // Read both pin states
+            // SAFETY: gpio_get_level is unsafe but safe to call with valid pin numbers
+            let clk_val = unsafe { esp_idf_sys::gpio_get_level(clk_num) != 0 };
+            let dt_val = unsafe { esp_idf_sys::gpio_get_level(dt_num) != 0 };
             
-            move || {
-                // Read both pin states
-                let clk_val = esp_idf_sys::gpio_get_level(clk_num) != 0;
-                let dt_val = esp_idf_sys::gpio_get_level(dt_num) != 0;
-                
-                // Update state machine
-                encoder_state.process_pins(clk_val, dt_val);
-            }
-        })?;
-    }
+            // Update state machine
+            encoder_state.process_pins(clk_val, dt_val);
+        }
+    })?;
     
     // If you see this message but ISR_Calls=0, the subscription succeeded
     // but interrupts might be immediately unregistered (handle dropped)
