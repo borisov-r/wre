@@ -437,7 +437,11 @@
             .then(response => response.json())
             .then(data => {
                 console.log('Settings saved:', data);
-                alert('Settings saved successfully! Note: Output pin changes require a device restart.');
+                if (data.warning) {
+                    alert('Settings applied but WARNING: ' + data.warning + '\nSettings may not persist after restart. Output pin changes require a device restart.');
+                } else {
+                    alert('Settings saved successfully! Note: Output pin changes require a device restart.');
+                }
             })
             .catch(error => {
                 console.error('Error saving settings:', error);

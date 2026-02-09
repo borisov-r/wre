@@ -117,17 +117,39 @@ fn load_settings_from_nvs(nvs_partition: &EspDefaultNvsPartition) -> Option<Sett
 }
 
 fn save_settings_to_nvs(settings: &Settings) -> anyhow::Result<()> {
-    let nvs_partition = EspDefaultNvsPartition::take()
-        .map_err(|e| anyhow::anyhow!("Failed to take NVS partition: {:?}", e))?;
-    
-    let mut nvs = esp_idf_svc::nvs::EspNvs::new(nvs_partition, "storage", true)
-        .map_err(|e| anyhow::anyhow!("Failed to open NVS namespace: {:?}", e))?;
+    use esp_idf_sys::{nvs_open, nvs_set_blob, nvs_commit, nvs_close, nvs_handle_t, NVS_READWRITE};
+    use std::ffi::CString;
     
     let json = serde_json::to_string(settings)
         .map_err(|e| anyhow::anyhow!("Failed to serialize settings: {:?}", e))?;
     
-    nvs.set_raw(SETTINGS_NVS_KEY, json.as_bytes())
-        .map_err(|e| anyhow::anyhow!("Failed to write settings to NVS: {:?}", e))?;
+    unsafe {
+        let mut handle: nvs_handle_t = 0;
+        let namespace = CString::new("storage").unwrap();
+        let key = CString::new(SETTINGS_NVS_KEY).unwrap();
+        
+        // Open NVS namespace
+        let err = nvs_open(namespace.as_ptr(), NVS_READWRITE, &mut handle as *mut _);
+        if err != 0 {
+            return Err(anyhow::anyhow!("Failed to open NVS namespace: error code {}", err));
+        }
+        
+        // Set blob data
+        let err = nvs_set_blob(handle, key.as_ptr(), json.as_ptr() as *const _, json.len());
+        if err != 0 {
+            nvs_close(handle);
+            return Err(anyhow::anyhow!("Failed to write settings to NVS: error code {}", err));
+        }
+        
+        // Commit changes
+        let err = nvs_commit(handle);
+        if err != 0 {
+            nvs_close(handle);
+            return Err(anyhow::anyhow!("Failed to commit NVS changes: error code {}", err));
+        }
+        
+        nvs_close(handle);
+    }
     
     info!("Settings saved to NVS successfully");
     Ok(())

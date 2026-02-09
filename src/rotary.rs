@@ -84,10 +84,12 @@ impl RotaryEncoderState {
     }
 
     pub fn get_angle(&self) -> f32 {
-        let settings = self.settings.lock().expect("Settings mutex poisoned");
-        let divisor = match settings.step_mode {
-            StepMode::Full => 1.0,
-            StepMode::Half => 2.0,
+        let divisor = {
+            let settings = self.settings.lock().expect("Settings mutex poisoned");
+            match settings.step_mode {
+                StepMode::Full => 1.0,
+                StepMode::Half => 2.0,
+            }
         };
         self.get_value() as f32 / divisor
     }
