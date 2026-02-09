@@ -10,13 +10,13 @@
 │  │     Core 0 (Protocol)   │   │   Core 1 (Application)   │    │
 │  │                         │   │                          │    │
 │  │  ┌─────────────────┐   │   │  ┌──────────────────┐   │    │
-│  │  │  WiFi Manager   │   │   │  │  GPIO Interrupt  │   │    │
-│  │  └────────┬────────┘   │   │  │     Handler      │   │    │
+│  │  │  WiFi Manager   │   │   │  │  GPIO Polling    │   │    │
+│  │  └────────┬────────┘   │   │  │   (~1000Hz)      │   │    │
 │  │           │            │   │  └────────┬─────────┘   │    │
 │  │  ┌────────▼────────┐   │   │           │             │    │
 │  │  │  HTTP Server    │   │   │  ┌────────▼─────────┐   │    │
 │  │  │                 │   │   │  │  Rotary Encoder  │   │    │
-│  │  │  REST API       │◄──┼───┼──│  State Machine   │   │    │
+│  │  │  REST API       │◄──┼───┼──│  Library         │   │    │
 │  │  │  /api/status    │   │   │  └────────┬─────────┘   │    │
 │  │  │  /api/set       │   │   │           │             │    │
 │  │  │  /api/stop      │   │   │  ┌────────▼─────────┐   │    │
@@ -52,13 +52,16 @@
 Rotary Encoder Rotation
          │
          ▼
-GPIO Interrupt (CLK/DT edges)
+GPIO Polling Loop (~1000Hz)
          │
          ▼
-Interrupt Handler reads pin states
+Read CLK and DT pin states
          │
          ▼
-State Machine processes transition
+rotary-encoder-embedded processes states
+         │
+         ▼
+Returns Direction (CW/CCW/None)
          │
          ▼
 Atomic update of encoder value
@@ -108,48 +111,32 @@ WiFi → HTTP Server
 │                                                   │
 │  Arc<Mutex<Vec<i32>>>    target_angles           │  ◄── Mutex protected
 │  Arc<Mutex<usize>>       current_target_index    │  ◄── Mutex protected
-│  Arc<Mutex<u8>>          state                   │  ◄── Mutex protected
 │                                                   │
 └───────────────────────────────────────────────────┘
          ▲                              ▲
          │                              │
     Core 0 reads                   Core 1 writes
-   (no contention)                (in ISR context)
+   (no contention)                (polling loop)
 ```
 
-## State Machine Diagram
+## Encoder Processing
+
+The rotary encoder is processed using the [rotary-encoder-embedded](https://github.com/ost-ing/rotary-encoder-embedded) library:
 
 ```
-Rotary Encoder Half-Step State Machine
-
-Initial State: R_START (0x0)
-
-  CLK  DT    Next State       Action
-  ─────────────────────────────────────
-   0   0  →  R_CW_3           -
-   0   1  →  R_CW_2           -
-   1   0  →  R_CW_1           -
-   1   1  →  R_START          -
-
-From R_CW_1:
-   0   0  →  R_CW_2           -
-   0   1  →  R_START          -
-   1   0  →  R_CW_1           -
-   1   1  →  R_START          -
-
-From R_CW_2:
-   0   0  →  R_CW_2           -
-   0   1  →  R_CW_3           -
-   1   0  →  R_CW_1           -
-   1   1  →  R_START          -
-
-From R_CW_3 (Clockwise Complete):
-   0   0  →  R_CW_2           -
-   0   1  →  R_CW_3           -
-   1   0  →  R_START          -
-   1   1  →  R_START          Increment (+1 half-step)
-
-(Similar transitions for CCW direction)
+Polling Loop (1ms interval)
+         │
+         ▼
+Read CLK and DT pins
+         │
+         ▼
+StandardMode.update(dt, clk)
+         │
+         ▼
+Returns Direction
+   ├── Clockwise → Increment value
+   ├── Anticlockwise → Decrement value
+   └── None → No change
 ```
 
 ## Timing Diagram
@@ -163,8 +150,8 @@ Encoder Input (CLK):  ──┐    ┌────┐    ┌────
 Encoder Input (DT):   ────┐    ┌────┐    ┌──
                           └────┘    └────┘
 
-Interrupts:           ↑  ↑  ↑  ↑  ↑  ↑  ↑  ↑
-                      (Each edge triggers ISR)
+Polling Events:       ↓  ↓  ↓  ↓  ↓  ↓  ↓  ↓
+                      (Every 1ms, ~1000Hz)
 
 Value Updates:        0 → 0 → 1 → 1 → 2 → 2 → 3
                       (Half-steps incremented on valid transitions)
@@ -254,8 +241,9 @@ Browser          HTTP Server (Core 0)    Encoder State    Rotary Task (Core 1)
 ```
 
 This architecture ensures:
-- **Low Latency**: Interrupts handled on dedicated core
+- **High Update Rate**: 1000Hz polling for responsive encoder tracking
 - **Thread Safety**: Atomic operations and mutexes prevent race conditions
 - **Responsiveness**: Web server doesn't block encoder processing
 - **Reliability**: Each core can operate independently
+- **Library-Based**: Uses well-tested rotary-encoder-embedded library
 - **Scalability**: Easy to add more endpoints or encoder features

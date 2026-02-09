@@ -1,12 +1,13 @@
 mod rotary;
 mod webserver;
 
-use esp_idf_hal::gpio::{Gpio21, Gpio22, Gpio32, PinDriver, Pull, InterruptType};
+use esp_idf_hal::gpio::{Gpio21, Gpio22, Gpio32, PinDriver, Pull};
 use esp_idf_hal::peripherals::Peripherals;
 use esp_idf_hal::task::thread::ThreadSpawnConfiguration;
 use esp_idf_sys as _;
 use log::*;
 use rotary::RotaryEncoderState;
+use rotary_encoder_embedded::{standard::StandardMode, Direction};
 use std::thread;
 use std::time::Duration;
 
@@ -21,7 +22,7 @@ fn main() -> anyhow::Result<()> {
     let peripherals = Peripherals::take()?;
 
     // Create rotary encoder state (0-720 half-steps = 0-360 degrees)
-    let encoder_state = RotaryEncoderState::new(0, 720, true);
+    let encoder_state = RotaryEncoderState::new(0, 720);
     let encoder_state_clone = encoder_state.clone();
     let encoder_state_web = encoder_state.clone();
 
@@ -78,32 +79,13 @@ fn rotary_task(
     // Set up input pins with pull-up resistors
     let mut clk = PinDriver::input(clk_pin)?;
     clk.set_pull(Pull::Up)?;
-    clk.set_interrupt_type(InterruptType::AnyEdge)?;
 
     let mut dt = PinDriver::input(dt_pin)?;
     dt.set_pull(Pull::Up)?;
-    dt.set_interrupt_type(InterruptType::AnyEdge)?;
 
-    // Pin numbers for low-level GPIO operations
-    let clk_pin_num = 21;
-    let dt_pin_num = 22;
-
-    // Additional low-level GPIO configuration to ensure pull-ups are enabled
-    // This is a belt-and-suspenders approach to ensure GPIO is configured correctly
-    unsafe {
-        // Set GPIO direction to input
-        esp_idf_sys::gpio_set_direction(clk_pin_num, esp_idf_sys::gpio_mode_t_GPIO_MODE_INPUT);
-        esp_idf_sys::gpio_set_direction(dt_pin_num, esp_idf_sys::gpio_mode_t_GPIO_MODE_INPUT);
-        
-        // Explicitly enable pull-up resistors
-        esp_idf_sys::gpio_set_pull_mode(clk_pin_num, esp_idf_sys::gpio_pull_mode_t_GPIO_PULLUP_ONLY);
-        esp_idf_sys::gpio_set_pull_mode(dt_pin_num, esp_idf_sys::gpio_pull_mode_t_GPIO_PULLUP_ONLY);
-        
-        info!("✓ GPIO pins explicitly configured as INPUT with PULL-UP");
-    }
+    info!("✓ GPIO pins configured as INPUT with PULL-UP");
 
     // Verify pin configuration by reading initial states
-    // With pull-up resistors, pins should read HIGH (true) when not connected or encoder is idle
     let clk_initial = clk.is_high();
     let dt_initial = dt.is_high();
     info!("📌 Pin configuration verified - CLK initial state: {} ({}), DT initial state: {} ({})", 
@@ -116,181 +98,107 @@ fn rotary_task(
     let mut output = PinDriver::output(output_pin)?;
     output.set_low()?;
 
-    // ============================================================================
-    // INTERRUPT HANDLER SETUP - CRITICAL SECTION
-    // ============================================================================
-    // This section sets up interrupt handlers that fire when encoder pins change.
-    // If ISR_Calls stays at 0, there's likely a problem in this section.
-    // See HOW_IT_WORKS.md for detailed explanation.
+    // Initialize the rotary encoder using the library's StandardMode
+    // This mode is suitable for standard rotary encoders with detents
+    let mut rotary_encoder = StandardMode::new();
     
-    // Create shared state for ISR
-    // The ISR needs access to encoder_state, so we clone it here
-    let encoder_state_isr = encoder_state.clone();
+    info!("✓ Using rotary-encoder-embedded library with StandardMode");
+    info!("✓ Polling mode: Checking encoder state every 1ms (~1000Hz)");
 
-    // CRITICAL: Declare subscription handle variables
-    // These MUST remain alive for interrupts to work!
-    // When these variables are dropped, the interrupts are automatically unregistered.
-    // The infinite loop below ensures they never drop.
-    let _clk_subscription;
-    let _dt_subscription;
-    
-    unsafe {
-        // Subscribe to CLK pin interrupts (GPIO 21)
-        // The closure below runs every time CLK pin changes (LOW→HIGH or HIGH→LOW)
-        _clk_subscription = clk.subscribe({
-            // Clone state for this closure (each closure needs its own reference)
-            let encoder_state = encoder_state_isr.clone();
-            
-            // CRITICAL: Explicitly capture pin numbers in closure scope
-            // These must be captured here, not used directly from outer scope
-            let clk_num = clk_pin_num;  // GPIO 21
-            let dt_num = dt_pin_num;    // GPIO 22
-            
-            // This closure is the actual ISR (Interrupt Service Routine)
-            move || {
-                // Read BOTH pin states (state machine needs both pins)
-                let clk_val = esp_idf_sys::gpio_get_level(clk_num) != 0;
-                let dt_val = esp_idf_sys::gpio_get_level(dt_num) != 0;
-                
-                // Update state machine (this increments ISR_Calls counter)
-                encoder_state.process_pins(clk_val, dt_val);
-            }
-        })?;
-
-        // Subscribe to DT pin interrupts (GPIO 22)
-        // Same pattern as CLK subscription above
-        _dt_subscription = dt.subscribe({
-            let encoder_state = encoder_state_isr.clone();
-            let clk_num = clk_pin_num;  // Explicitly capture
-            let dt_num = dt_pin_num;    // Explicitly capture
-            
-            move || {
-                // Read both pin states
-                let clk_val = esp_idf_sys::gpio_get_level(clk_num) != 0;
-                let dt_val = esp_idf_sys::gpio_get_level(dt_num) != 0;
-                
-                // Update state machine
-                encoder_state.process_pins(clk_val, dt_val);
-            }
-        })?;
-    }
-    
-    // If you see this message but ISR_Calls=0, the subscription succeeded
-    // but interrupts might be immediately unregistered (handle dropped)
-    info!("✓ Interrupt handlers subscribed for GPIO {} (CLK) and GPIO {} (DT)", clk_pin_num, dt_pin_num);
-
-    // Main rotary encoder loop
+    // Main rotary encoder loop with polling
     loop {
-        // In debug mode, always read and display current pin states even when not active
-        // This helps diagnose if pins are responding to encoder rotation
-        if encoder_state.is_debug_mode() {
-            // Read pin states directly using low-level GPIO call
-            let clk_current = unsafe { esp_idf_sys::gpio_get_level(clk_pin_num) != 0 };
-            let dt_current = unsafe { esp_idf_sys::gpio_get_level(dt_pin_num) != 0 };
-            let (isr_clk, isr_dt, state, value, debug_angle, isr_count, clk_dt_pins) = encoder_state.get_debug_info();
-            
-            // Log pin states continuously when in debug mode to help diagnose issues
-            // Show both live-read pins and ISR-captured pins for comparison
-            info!("🔍 DEBUG: Live[CLK={} DT={}] ISR[CLK={} DT={} Pins=0b{:02b}] State=0x{:02X} Value={} Angle={:.1}° ISR_Calls={}", 
-                  if clk_current { 1 } else { 0 },
-                  if dt_current { 1 } else { 0 },
-                  if isr_clk { 1 } else { 0 },
-                  if isr_dt { 1 } else { 0 },
-                  clk_dt_pins,
-                  state,
-                  value,
-                  debug_angle,
-                  isr_count);
+        // Poll the encoder pins at ~1000Hz (recommended by the library)
+        // Read current pin states
+        let clk_state = clk.is_high();
+        let dt_state = dt.is_high();
+        
+        // Update the encoder and get direction
+        let direction = rotary_encoder.update(dt_state, clk_state);
+        
+        // Process direction changes
+        match direction {
+            Direction::Clockwise => {
+                encoder_state.update_from_direction(1);
+            }
+            Direction::Anticlockwise => {
+                encoder_state.update_from_direction(-1);
+            }
+            Direction::None => {
+                // No change
+            }
         }
         
-        if !encoder_state.is_active() {
-            thread::sleep(Duration::from_millis(200));
-            continue;
-        }
-
-        let targets = encoder_state.target_angles.lock()
-            .expect("Target angles mutex poisoned");
-        if targets.is_empty() {
-            drop(targets);
-            thread::sleep(Duration::from_millis(200));
-            continue;
-        }
-
-        let current_idx = *encoder_state.current_target_index.lock()
-            .expect("Current target index mutex poisoned");
-        if current_idx >= targets.len() {
-            drop(targets);
-            thread::sleep(Duration::from_millis(200));
-            continue;
-        }
-
-        let target = targets[current_idx];
-        drop(targets);
-
-        let steps = encoder_state.get_value();
-        let angle = steps as f32 / 2.0;
-        let target_angle = target as f32 / 2.0;
-
-        // Print debug information to serial port when debug mode is enabled
-        if encoder_state.is_debug_mode() {
-            let (isr_clk, isr_dt, state, value, debug_angle, isr_count, clk_dt_pins) = encoder_state.get_debug_info();
-            info!("🔍 DEBUG (Active): ISR[CLK={} DT={} Pins=0b{:02b}] State=0x{:02X} Value={} Angle={:.1}° Target={:.1}° ISR_Calls={}", 
-                  if isr_clk { 1 } else { 0 },
-                  if isr_dt { 1 } else { 0 },
-                  clk_dt_pins,
-                  state,
-                  value,
-                  debug_angle,
-                  target_angle,
-                  isr_count);
-        }
-
-        // Trigger output when reaching target (moving forward from 0)
-        if !encoder_state.triggered.load(std::sync::atomic::Ordering::SeqCst) 
-            && steps >= target {
-            output.set_high()?;
-            encoder_state.output_on.store(true, std::sync::atomic::Ordering::SeqCst);
-            encoder_state.triggered.store(true, std::sync::atomic::Ordering::SeqCst);
-            info!("⚡ Target reached: {:.1}°", target_angle);
-        } else if encoder_state.triggered.load(std::sync::atomic::Ordering::SeqCst) {
-            // Keep output on while above target
-            if steps < target {
-                output.set_low()?;
-                encoder_state.output_on.store(false, std::sync::atomic::Ordering::SeqCst);
-            }
-        } else {
-            output.set_low()?;
-            encoder_state.output_on.store(false, std::sync::atomic::Ordering::SeqCst);
-        }
-
-        // Reset encoder if angle drops below 2°
-        if angle < 2.0 && !encoder_state.reset_detected.load(std::sync::atomic::Ordering::SeqCst) {
-            encoder_state.set_value(0);
-            encoder_state.reset_detected.store(true, std::sync::atomic::Ordering::SeqCst);
-            encoder_state.triggered.store(false, std::sync::atomic::Ordering::SeqCst);
-            info!("🔄 Encoder reset to 0°");
-
-            // Advance to next target
-            let mut idx = encoder_state.current_target_index.lock()
-                .expect("Current target index mutex poisoned");
-            *idx += 1;
-            let new_idx = *idx;
-            drop(idx);
-
+        // Handle target angle logic
+        if encoder_state.is_active() {
             let targets = encoder_state.target_angles.lock()
                 .expect("Target angles mutex poisoned");
-            if new_idx >= targets.len() {
-                info!("✅ All targets completed and returned to 0°.");
-                encoder_state.stop();
-                output.set_low()?;
+            
+            if !targets.is_empty() {
+                let current_idx = *encoder_state.current_target_index.lock()
+                    .expect("Current target index mutex poisoned");
+                
+                if current_idx < targets.len() {
+                    let target = targets[current_idx];
+                    drop(targets);
+
+                    let steps = encoder_state.get_value();
+                    let angle = steps as f32 / 2.0;
+                    let target_angle = target as f32 / 2.0;
+
+                    // Trigger output when reaching target (moving forward from 0)
+                    if !encoder_state.triggered.load(std::sync::atomic::Ordering::SeqCst) 
+                        && steps >= target {
+                        output.set_high()?;
+                        encoder_state.output_on.store(true, std::sync::atomic::Ordering::SeqCst);
+                        encoder_state.triggered.store(true, std::sync::atomic::Ordering::SeqCst);
+                        info!("⚡ Target reached: {:.1}°", target_angle);
+                    } else if encoder_state.triggered.load(std::sync::atomic::Ordering::SeqCst) {
+                        // Keep output on while above target
+                        if steps < target {
+                            output.set_low()?;
+                            encoder_state.output_on.store(false, std::sync::atomic::Ordering::SeqCst);
+                        }
+                    } else {
+                        output.set_low()?;
+                        encoder_state.output_on.store(false, std::sync::atomic::Ordering::SeqCst);
+                    }
+
+                    // Reset encoder if angle drops below 2°
+                    if angle < 2.0 && !encoder_state.reset_detected.load(std::sync::atomic::Ordering::SeqCst) {
+                        encoder_state.set_value(0);
+                        encoder_state.reset_detected.store(true, std::sync::atomic::Ordering::SeqCst);
+                        encoder_state.triggered.store(false, std::sync::atomic::Ordering::SeqCst);
+                        info!("🔄 Encoder reset to 0°");
+
+                        // Advance to next target
+                        let mut idx = encoder_state.current_target_index.lock()
+                            .expect("Current target index mutex poisoned");
+                        *idx += 1;
+                        let new_idx = *idx;
+                        drop(idx);
+
+                        let targets = encoder_state.target_angles.lock()
+                            .expect("Target angles mutex poisoned");
+                        if new_idx >= targets.len() {
+                            info!("✅ All targets completed and returned to 0°.");
+                            encoder_state.stop();
+                            output.set_low()?;
+                        }
+                        drop(targets);
+                    }
+
+                    if angle > 5.0 {
+                        encoder_state.reset_detected.store(false, std::sync::atomic::Ordering::SeqCst);
+                    }
+                } else {
+                    drop(targets);
+                }
+            } else {
+                drop(targets);
             }
-            drop(targets);
         }
-
-        if angle > 5.0 {
-            encoder_state.reset_detected.store(false, std::sync::atomic::Ordering::SeqCst);
-        }
-
-        thread::sleep(Duration::from_millis(50));
+        
+        // Poll at ~1000Hz (1ms delay) as recommended by the library
+        thread::sleep(Duration::from_millis(1));
     }
 }

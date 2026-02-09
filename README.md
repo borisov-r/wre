@@ -21,7 +21,8 @@ This project implements a wireless rotary encoder control system for ESP32, rewr
 ## Features
 - **Dual-Core Architecture**: 
   - Core 0: HTTP server with REST API for real-time updates
-  - Core 1: Dedicated rotary encoder processing with interrupt handling
+  - Core 1: Dedicated rotary encoder processing with high-frequency polling (~1000Hz)
+- **Rotary Encoder Library**: Uses [rotary-encoder-embedded](https://github.com/ost-ing/rotary-encoder-embedded) for reliable encoder handling
 - **WiFi Connectivity**: 
   - Client mode: Connects to your existing WiFi network
   - Automatic AP fallback: If connection fails, device creates its own WiFi network (SSID: "abkant", Password: "123456789")
@@ -144,8 +145,8 @@ espflash flash --monitor target/xtensa-esp32-espidf/release/wre
   - `POST /api/stop` - Stop encoder
 
 ### Core 1 (Rotary Encoder)
-- Handles GPIO interrupts for encoder pins
-- Processes encoder state machine (half-step mode for 0.5° resolution)
+- Polls GPIO pins for encoder state at ~1000Hz (recommended by rotary-encoder-embedded library)
+- Uses rotary-encoder-embedded library for reliable encoder processing (half-step mode for 0.5° resolution)
 - Manages output pin control
 - Implements bounded range (0-720 half-steps = 0-360°)
 - Auto-resets when encoder returns below 2°
