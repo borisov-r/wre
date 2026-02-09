@@ -286,6 +286,14 @@
                     </div>
                 </div>
             </div>
+            
+            <div class="setting-row">
+                <span class="setting-label">Minimum Angle Threshold (°)</span>
+                <div class="setting-control">
+                    <input type="number" id="minAngleThreshold" min="0" max="10" step="0.1" value="2.5">
+                </div>
+            </div>
+            <div class="help-text">Angle below which the encoder is considered to be at 0°</div>
         </div>
         
         <div class="settings-section">
@@ -313,6 +321,14 @@
                     </div>
                 </div>
             </div>
+            
+            <div class="setting-row">
+                <span class="setting-label">Hold Output Until Threshold</span>
+                <div class="setting-control">
+                    <input type="checkbox" id="holdOutputUntilThreshold" style="width: 20px; height: 20px; cursor: pointer;">
+                </div>
+            </div>
+            <div class="help-text">Keep output HIGH until angle drops below minimum threshold</div>
             
             <div class="setting-row">
                 <span class="setting-label">Manual Output Control</span>
@@ -377,6 +393,9 @@
                         document.getElementById('stepHalf').checked = true;
                     }
                     
+                    // Set minimum angle threshold
+                    document.getElementById('minAngleThreshold').value = data.minimum_angle_threshold || 2.5;
+                    
                     // Set output pin
                     document.getElementById('outputPin').value = data.output_pin;
                     
@@ -386,6 +405,9 @@
                     } else {
                         document.getElementById('stateHigh').checked = true;
                     }
+                    
+                    // Set hold output until threshold
+                    document.getElementById('holdOutputUntilThreshold').checked = data.hold_output_until_threshold || false;
                     
                     console.log('Settings loaded:', data);
                 })
@@ -399,7 +421,9 @@
                 forward_direction: document.getElementById('dirCW').checked ? 'Clockwise' : 'CounterClockwise',
                 step_mode: document.getElementById('stepFull').checked ? 'Full' : 'Half',
                 output_pin: parseInt(document.getElementById('outputPin').value),
-                output_default_state: document.getElementById('stateLow').checked ? 'Low' : 'High'
+                output_default_state: document.getElementById('stateLow').checked ? 'Low' : 'High',
+                minimum_angle_threshold: parseFloat(document.getElementById('minAngleThreshold').value),
+                hold_output_until_threshold: document.getElementById('holdOutputUntilThreshold').checked
             };
             
             fetch('/api/settings', {
