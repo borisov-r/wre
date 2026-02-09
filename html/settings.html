@@ -235,25 +235,7 @@
             margin-top: 10px;
         }
 
-        .current-angle-display {
-            background: #667eea;
-            color: white;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
 
-        .current-angle-display .label {
-            font-size: 14px;
-            opacity: 0.9;
-            margin-bottom: 5px;
-        }
-
-        .current-angle-display .value {
-            font-size: 48px;
-            font-weight: bold;
-        }
     </style>
 </head>
 <body>
@@ -268,11 +250,6 @@
         
         <div id="connectionStatus" class="connection-status disconnected">
             ⚠️ Connecting...
-        </div>
-        
-        <div class="current-angle-display">
-            <div class="label">Current Angle</div>
-            <div class="value" id="currentAngle">0.0°</div>
         </div>
         
         <div class="settings-section">
@@ -362,8 +339,6 @@
             fetch('/api/status')
                 .then(response => response.json())
                 .then(data => {
-                    document.getElementById('currentAngle').textContent = data.angle.toFixed(1) + '°';
-                    
                     const outputIndicator = document.getElementById('outputIndicator');
                     if (data.output_on) {
                         outputIndicator.classList.add('on');
