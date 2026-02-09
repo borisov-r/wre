@@ -8,6 +8,8 @@ pub struct Settings {
     pub step_mode: StepMode,
     pub output_pin: u8,
     pub output_default_state: PinState,
+    pub minimum_angle_threshold: f32,
+    pub hold_output_until_threshold: bool,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
@@ -35,6 +37,8 @@ impl Default for Settings {
             step_mode: StepMode::Half,
             output_pin: 32,
             output_default_state: PinState::Low,
+            minimum_angle_threshold: 2.5,
+            hold_output_until_threshold: false,
         }
     }
 }

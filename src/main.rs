@@ -170,10 +170,21 @@ fn rotary_task(
                             encoder_state.triggered.store(true, std::sync::atomic::Ordering::SeqCst);
                             info!("⚡ Target reached: {:.1}°", target_angle);
                         } else if encoder_state.triggered.load(std::sync::atomic::Ordering::SeqCst) {
-                            // Keep output on while above target
-                            if steps < target {
-                                output.set_low()?;
-                                encoder_state.output_on.store(false, std::sync::atomic::Ordering::SeqCst);
+                            // Target was reached, now manage output based on settings
+                            let hold_until_threshold = settings.hold_output_until_threshold;
+                            
+                            if hold_until_threshold {
+                                // Keep output on until angle drops below threshold
+                                if angle < settings.minimum_angle_threshold {
+                                    output.set_low()?;
+                                    encoder_state.output_on.store(false, std::sync::atomic::Ordering::SeqCst);
+                                }
+                            } else {
+                                // Turn off output as soon as we go below target
+                                if steps < target {
+                                    output.set_low()?;
+                                    encoder_state.output_on.store(false, std::sync::atomic::Ordering::SeqCst);
+                                }
                             }
                         } else {
                             output.set_low()?;
@@ -181,8 +192,10 @@ fn rotary_task(
                         }
                     }
 
-                    // Reset encoder if angle drops below 2.5°
-                    if angle < 2.5 && !encoder_state.reset_detected.load(std::sync::atomic::Ordering::SeqCst) {
+                    // Reset encoder if angle drops below threshold AND target was already triggered
+                    if encoder_state.triggered.load(std::sync::atomic::Ordering::SeqCst)
+                        && angle < settings.minimum_angle_threshold 
+                        && !encoder_state.reset_detected.load(std::sync::atomic::Ordering::SeqCst) {
                         encoder_state.set_value(0);
                         encoder_state.reset_detected.store(true, std::sync::atomic::Ordering::SeqCst);
                         encoder_state.triggered.store(false, std::sync::atomic::Ordering::SeqCst);
