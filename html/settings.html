@@ -384,7 +384,7 @@
                     
                     // Update current angle display
                     const currentAngleElem = document.getElementById('currentAngle');
-                    if (currentAngleElem) {
+                    if (currentAngleElem && data.angle != null) {
                         currentAngleElem.textContent = data.angle.toFixed(1) + '°';
                     }
                     
@@ -446,6 +446,7 @@
         }
         
         function saveSettings() {
+            const debugEnabledElem = document.getElementById('debugEnabled');
             const settings = {
                 forward_direction: document.getElementById('dirCW').checked ? 'Clockwise' : 'CounterClockwise',
                 step_mode: document.getElementById('stepFull').checked ? 'Full' : 'Half',
@@ -453,7 +454,7 @@
                 output_default_state: document.getElementById('stateLow').checked ? 'Low' : 'High',
                 minimum_angle_threshold: parseFloat(document.getElementById('minAngleThreshold').value),
                 hold_output_until_threshold: document.getElementById('holdOutputUntilThreshold').checked,
-                debug_enabled: document.getElementById('debugEnabled').checked
+                debug_enabled: debugEnabledElem ? debugEnabledElem.checked : false
             };
             
             fetch('/api/settings', {

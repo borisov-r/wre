@@ -270,8 +270,7 @@ pub fn start_webserver(
                 // Log angle value if debug mode is enabled
                 if encoder_state_set.is_debug_mode() {
                     let current_angle = encoder_state_set.get_angle();
-                    info!("🔍 DEBUG: Start button clicked - Target angles: {:?}, Current angle: {:.1}°", 
-                          request.angles, current_angle);
+                    info!("🔍 DEBUG: Start button clicked - Target angles: {:?}, Current angle: {:.1}°", request.angles, current_angle);
                 }
                 
                 encoder_state_set.set_target_angles(request.angles);
