@@ -216,6 +216,33 @@
             margin-top: 5px;
         }
         
+        .angle-input-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .angle-input-wrapper input {
+            flex: 1;
+        }
+        
+        .current-angle-display {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .current-angle-label {
+            color: #666;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .current-angle-value {
+            color: #667eea;
+            font-size: 24px;
+            font-weight: 700;
+        }
 
     </style>
 </head>
@@ -246,11 +273,11 @@
         
         <div class="input-group">
             <label for="angles">Target Angle (degrees)</label>
-            <div style="display: flex; align-items: center; gap: 15px;">
-                <input type="number" id="angles" min="0" max="270" step="0.5" value="45" style="flex: 1;">
-                <div style="display: flex; flex-direction: column; align-items: center;">
-                    <span style="color: #666; font-size: 12px; font-weight: 500;">Current</span>
-                    <span id="currentAngle" style="color: #667eea; font-size: 24px; font-weight: 700;">0.0°</span>
+            <div class="angle-input-wrapper">
+                <input type="number" id="angles" min="0" max="270" step="0.5" value="45">
+                <div class="current-angle-display">
+                    <span class="current-angle-label">Current</span>
+                    <span id="currentAngle" class="current-angle-value">0.0°</span>
                 </div>
             </div>
             <div class="help-text">Enter target angle (0-270° in 0.5° increments)</div>
