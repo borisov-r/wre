@@ -344,6 +344,26 @@
             <div class="help-text">Use manual control for testing the output pin</div>
         </div>
         
+        <div class="settings-section">
+            <h3>Debug Options</h3>
+            
+            <div class="setting-row">
+                <span class="setting-label">Enable Debug Mode</span>
+                <div class="setting-control">
+                    <input type="checkbox" id="debugEnabled" style="width: 20px; height: 20px; cursor: pointer;">
+                </div>
+            </div>
+            <div class="help-text">Show debug messages in serial console including angle values and encoder movements</div>
+            
+            <div class="setting-row">
+                <span class="setting-label">Current Angle</span>
+                <div class="setting-control">
+                    <span class="status-value" id="currentAngle" style="font-size: 16px; color: #667eea;">0.0°</span>
+                </div>
+            </div>
+            <div class="help-text">Real-time encoder angle for debugging purposes</div>
+        </div>
+        
         <button class="btn-primary" onclick="saveSettings()">💾 Save Settings</button>
         <button class="btn-secondary" onclick="window.location.href='/'">← Back to Home</button>
     </div>
@@ -360,6 +380,12 @@
                         outputIndicator.classList.add('on');
                     } else {
                         outputIndicator.classList.remove('on');
+                    }
+                    
+                    // Update current angle display
+                    const currentAngleElem = document.getElementById('currentAngle');
+                    if (currentAngleElem && data.angle != null) {
+                        currentAngleElem.textContent = data.angle.toFixed(1) + '°';
                     }
                     
                     // Update connection status
@@ -409,6 +435,9 @@
                     // Set hold output until threshold
                     document.getElementById('holdOutputUntilThreshold').checked = data.hold_output_until_threshold || false;
                     
+                    // Set debug enabled
+                    document.getElementById('debugEnabled').checked = data.debug_enabled || false;
+                    
                     console.log('Settings loaded:', data);
                 })
                 .catch(error => {
@@ -417,13 +446,15 @@
         }
         
         function saveSettings() {
+            const debugEnabledElem = document.getElementById('debugEnabled');
             const settings = {
                 forward_direction: document.getElementById('dirCW').checked ? 'Clockwise' : 'CounterClockwise',
                 step_mode: document.getElementById('stepFull').checked ? 'Full' : 'Half',
                 output_pin: parseInt(document.getElementById('outputPin').value),
                 output_default_state: document.getElementById('stateLow').checked ? 'Low' : 'High',
                 minimum_angle_threshold: parseFloat(document.getElementById('minAngleThreshold').value),
-                hold_output_until_threshold: document.getElementById('holdOutputUntilThreshold').checked
+                hold_output_until_threshold: document.getElementById('holdOutputUntilThreshold').checked,
+                debug_enabled: debugEnabledElem ? debugEnabledElem.checked : false
             };
             
             fetch('/api/settings', {

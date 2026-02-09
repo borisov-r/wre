@@ -10,6 +10,7 @@ pub struct Settings {
     pub output_default_state: PinState,
     pub minimum_angle_threshold: f32,
     pub hold_output_until_threshold: bool,
+    pub debug_enabled: bool,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
@@ -39,6 +40,7 @@ impl Default for Settings {
             output_default_state: PinState::Low,
             minimum_angle_threshold: 2.5,
             hold_output_until_threshold: false,
+            debug_enabled: false,
         }
     }
 }
@@ -202,10 +204,15 @@ impl RotaryEncoderState {
     }
 
     pub fn get_settings(&self) -> Settings {
-        self.settings.lock().expect("Settings mutex poisoned").clone()
+        let mut settings = self.settings.lock().expect("Settings mutex poisoned").clone();
+        // Sync debug_enabled with the atomic debug_mode
+        settings.debug_enabled = self.is_debug_mode();
+        settings
     }
 
     pub fn set_settings(&self, new_settings: Settings) {
+        // Sync the atomic debug_mode with debug_enabled from settings
+        self.set_debug_mode(new_settings.debug_enabled);
         let mut settings = self.settings.lock().expect("Settings mutex poisoned");
         *settings = new_settings;
     }

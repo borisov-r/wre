@@ -266,6 +266,13 @@ pub fn start_webserver(
         match serde_json::from_slice::<SetAnglesRequest>(&buf[..len]) {
             Ok(request) => {
                 info!("Setting target angles: {:?}", request.angles);
+                
+                // Log angle value if debug mode is enabled
+                if encoder_state_set.is_debug_mode() {
+                    let current_angle = encoder_state_set.get_angle();
+                    info!("🔍 DEBUG: Start button clicked - Target angles: {:?}, Current angle: {:.1}°", request.angles, current_angle);
+                }
+                
                 encoder_state_set.set_target_angles(request.angles);
                 
                 req.into_response(200, Some("OK"), &[("Content-Type", "application/json")])?
