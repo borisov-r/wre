@@ -106,15 +106,17 @@ impl RotaryEncoderState {
     }
 
     // Update encoder value based on direction from rotary-encoder-embedded library
+    // Note: Direction is negated to match original behavior (reverse=true)
     pub fn update_from_direction(&self, direction: i32) {
         if direction != 0 {
             let old_value = self.get_value();
-            let new_value = self.bound(old_value + direction);
+            // Negate direction to maintain original reversed behavior
+            let new_value = self.bound(old_value - direction);
             self.value.store(new_value, Ordering::SeqCst);
             
             if self.is_debug_mode() {
                 let angle = new_value as f32 / 2.0;
-                log::info!("🔍 DEBUG: Direction={} Value={} Angle={:.1}°", direction, new_value, angle);
+                log::info!("🔍 DEBUG: Direction={} Value={} Angle={:.1}°", -direction, new_value, angle);
             }
         }
     }
