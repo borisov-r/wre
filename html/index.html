@@ -216,25 +216,7 @@
             margin-top: 5px;
         }
         
-        .current-angle-display {
-            background: #667eea;
-            color: white;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
 
-        .current-angle-display .label {
-            font-size: 14px;
-            opacity: 0.9;
-            margin-bottom: 5px;
-        }
-
-        .current-angle-display .value {
-            font-size: 48px;
-            font-weight: bold;
-        }
     </style>
 </head>
 <body>
@@ -251,11 +233,6 @@
             ⚠️ Connecting...
         </div>
         
-        <div class="current-angle-display">
-            <div class="label">Current Angle</div>
-            <div class="value" id="currentAngle">0.0°</div>
-        </div>
-        
         <div class="status-card">
             <div class="status-row">
                 <span class="status-label">Output Status</span>
@@ -268,9 +245,9 @@
         </div>
         
         <div class="input-group">
-            <label for="angles">Target Angles (comma-separated, in degrees)</label>
-            <input type="text" id="angles" placeholder="e.g., 45, 90.5, 135, 180" value="45, 90, 135">
-            <div class="help-text">Enter one or more target angles separated by commas</div>
+            <label for="angles">Target Angle (degrees)</label>
+            <input type="number" id="angles" min="0" max="270" step="0.5" value="45">
+            <div class="help-text">Enter target angle (0-270° in 0.5° increments)</div>
         </div>
         
         <div class="button-group">
@@ -286,7 +263,6 @@
             fetch('/api/status')
                 .then(response => response.json())
                 .then(data => {
-                    document.getElementById('currentAngle').textContent = data.angle.toFixed(1) + '°';
                     document.getElementById('encoderStatus').textContent = data.active ? 'Active' : 'Stopped';
                     
                     const outputIndicator = document.getElementById('outputIndicator');
@@ -310,28 +286,16 @@
         }
         
         function setAngles() {
-            const anglesInput = document.getElementById('angles').value;
-            const inputValues = anglesInput.split(',');
-            const angles = [];
-            const invalidValues = [];
+            const angleInput = document.getElementById('angles').value;
+            const angle = parseFloat(angleInput);
             
-            inputValues.forEach(s => {
-                const trimmed = s.trim();
-                if (trimmed === '') return;
-                const val = parseFloat(trimmed);
-                if (isNaN(val)) {
-                    invalidValues.push(trimmed);
-                } else {
-                    angles.push(val);
-                }
-            });
-            
-            if (invalidValues.length > 0) {
-                alert('Warning: The following values are invalid and will be ignored: ' + invalidValues.join(', '));
+            if (isNaN(angle)) {
+                alert('Please enter a valid angle');
+                return;
             }
             
-            if (angles.length === 0) {
-                alert('Please enter at least one valid angle');
+            if (angle < 0 || angle > 270) {
+                alert('Angle must be between 0 and 270 degrees');
                 return;
             }
             
@@ -340,16 +304,16 @@
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ angles: angles })
+                body: JSON.stringify({ angles: [angle] })
             })
             .then(response => response.json())
             .then(data => {
-                console.log('Angles set successfully:', data);
+                console.log('Angle set successfully:', data);
                 updateStatus();
             })
             .catch(error => {
-                console.error('Error setting angles:', error);
-                alert('Error setting angles: ' + error);
+                console.error('Error setting angle:', error);
+                alert('Error setting angle: ' + error);
             });
         }
         
