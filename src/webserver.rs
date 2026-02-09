@@ -87,8 +87,8 @@ fn load_settings_from_nvs(nvs_partition: &EspDefaultNvsPartition) -> Option<Sett
         Ok(nvs) => {
             let mut buf = [0u8; 256];
             match nvs.get_raw(SETTINGS_NVS_KEY, &mut buf) {
-                Ok(Some(len)) => {
-                    match serde_json::from_slice::<Settings>(&buf[..len]) {
+                Ok(Some(data)) => {
+                    match serde_json::from_slice::<Settings>(data) {
                         Ok(settings) => {
                             info!("Loaded settings from NVS: {:?}", settings);
                             Some(settings)
@@ -117,7 +117,7 @@ fn load_settings_from_nvs(nvs_partition: &EspDefaultNvsPartition) -> Option<Sett
 }
 
 fn save_settings_to_nvs(settings: &Settings) -> anyhow::Result<()> {
-    use esp_idf_sys::{nvs_open, nvs_set_blob, nvs_commit, nvs_close, nvs_handle_t, NVS_READWRITE};
+    use esp_idf_sys::{nvs_open, nvs_set_blob, nvs_commit, nvs_close, nvs_handle_t, nvs_open_mode_t_NVS_READWRITE};
     use std::ffi::CString;
     
     let json = serde_json::to_string(settings)
@@ -129,7 +129,7 @@ fn save_settings_to_nvs(settings: &Settings) -> anyhow::Result<()> {
         let key = CString::new(SETTINGS_NVS_KEY).unwrap();
         
         // Open NVS namespace
-        let err = nvs_open(namespace.as_ptr(), NVS_READWRITE, &mut handle as *mut _);
+        let err = nvs_open(namespace.as_ptr(), nvs_open_mode_t_NVS_READWRITE, &mut handle as *mut _);
         if err != 0 {
             return Err(anyhow::anyhow!("Failed to open NVS namespace: error code {}", err));
         }
