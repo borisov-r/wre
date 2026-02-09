@@ -66,11 +66,15 @@ impl RotaryEncoderState {
         self.triggered.store(false, Ordering::SeqCst);
         self.reset_detected.store(false, Ordering::SeqCst);
         self.encoder_active.store(true, Ordering::SeqCst);
+        // Reset angle to 0 when Start button is pressed
+        self.set_value(0);
     }
 
     pub fn stop(&self) {
         self.encoder_active.store(false, Ordering::SeqCst);
         self.output_on.store(false, Ordering::SeqCst);
+        // Reset angle to 0 when Stop button is pressed
+        self.set_value(0);
     }
 
     pub fn get_target_angles(&self) -> Vec<f32> {

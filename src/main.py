@@ -47,8 +47,8 @@ def rotary_loop():
         else:
             output.off()
 
-        # Reset encoder if angle drops below 2°
-        if angle < 2 and not reset_detected:
+        # Reset encoder if angle drops below 2.5°
+        if angle < 2.5 and not reset_detected:
             r.set(0)
             reset_detected = True
             triggered = False

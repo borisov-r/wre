@@ -84,7 +84,7 @@ curl -X POST http://192.168.1.xxx/api/stop
 4. **Reset Test**
    - Rotate encoder past first target
    - Output should turn ON
-   - Rotate back below 2°
+   - Rotate back below 2.5°
    - Output should turn OFF
    - Should advance to next target
    - Serial monitor: "🔄 Encoder reset to 0°"
@@ -118,7 +118,7 @@ Use an oscilloscope or logic analyzer on GPIO 32:
 2. Rotate encoder to 90°
 3. Verify output HIGH exactly at 90°
 4. Rotate back to 0°
-5. Verify output LOW below 2°
+5. Verify output LOW below 2.5°
 
 ### Stress Test
 

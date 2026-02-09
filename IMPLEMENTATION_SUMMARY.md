@@ -15,7 +15,7 @@ This project successfully rewrites the MicroPython wireless rotary encoder contr
 - Half-step state machine for 0.5° resolution
 - GPIO interrupt handling on pins 21 (CLK) and 22 (DT)
 - Bounded range: 0-720 half-steps (0-360 degrees)
-- Automatic reset logic when returning below 2°
+- Automatic reset logic when returning below 2.5°
 - Sequential target angle processing
 
 ### 3. Output Control ✅

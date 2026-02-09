@@ -75,7 +75,7 @@ The polling loop:
 The output pin (GPIO 32) follows this logic:
 1. **Trigger**: When encoder value >= target angle (moving forward from 0)
 2. **Hold**: Output stays HIGH while above target
-3. **Reset**: When encoder returns below 2°, advance to next target
+3. **Reset**: When encoder returns below 2.5°, advance to next target
 4. **Complete**: When all targets are reached and returned to 0°
 
 ### REST API Endpoints
