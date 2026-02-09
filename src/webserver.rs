@@ -70,11 +70,9 @@ struct StatusResponse {
 
 #[derive(Serialize)]
 struct DebugResponse {
-    clk_pin: bool,
-    dt_pin: bool,
-    state_machine: u8,
     raw_value: i32,
     angle: f32,
+    debug_mode: bool,
 }
 
 pub fn start_webserver(
@@ -241,13 +239,10 @@ pub fn start_webserver(
     // API: Get debug info
     let encoder_state_debug_info = encoder_state_handlers.clone();
     server.fn_handler("/api/debug/info", embedded_svc::http::Method::Get, move |req| {
-        let (clk, dt, state, value, angle, _isr_count, _clk_dt_pins) = encoder_state_debug_info.get_debug_info();
         let debug_info = DebugResponse {
-            clk_pin: clk,
-            dt_pin: dt,
-            state_machine: state,
-            raw_value: value,
-            angle,
+            raw_value: encoder_state_debug_info.get_value(),
+            angle: encoder_state_debug_info.get_angle(),
+            debug_mode: encoder_state_debug_info.is_debug_mode(),
         };
 
         let json = serde_json::to_string(&debug_info)
