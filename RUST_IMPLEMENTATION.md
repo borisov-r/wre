@@ -20,8 +20,8 @@ This project implements a wireless rotary encoder control system using Rust and 
 #### Core 1 (Application Core)  
 - **Primary Role**: Real-time rotary encoder processing
 - **Responsibilities**:
-  - GPIO interrupt handling for CLK and DT pins
-  - Rotary encoder state machine processing
+  - High-frequency polling of GPIO pins for CLK and DT (~1000Hz)
+  - Rotary encoder processing using rotary-encoder-embedded library
   - Output pin control (GPIO 32)
   - Target angle management
   - Auto-reset logic
@@ -40,35 +40,35 @@ Arc<AtomicBool>       // Flags: active, output_on, triggered, reset_detected
 // Mutex-protected types for complex data
 Arc<Mutex<Vec<i32>>>  // Target angles list
 Arc<Mutex<usize>>     // Current target index
-Arc<Mutex<u8>>        // Encoder state machine state
 ```
 
-### Rotary Encoder State Machine
+### Rotary Encoder Processing
 
-Implements a half-step state machine for 0.5° resolution:
+Uses the [rotary-encoder-embedded](https://github.com/ost-ing/rotary-encoder-embedded) library for reliable encoder handling:
 - **Input Resolution**: 2 half-steps = 1 full step = 1 degree
 - **Range**: 0-720 half-steps (0-360 degrees)
-- **Mode**: Bounded range with automatic clamping
-- **Direction**: Configurable (reversed by default)
+- **Mode**: StandardMode (suitable for encoders with detents)
+- **Polling Rate**: ~1000Hz (recommended by the library for best results)
 
-State transitions are handled by an 8x4 transition table that processes:
-- CLK (Clock) pin state
-- DT (Data) pin state
-- Current state
-- Direction (CW/CCW)
+The library handles state transitions internally and returns Direction:
+- `Direction::Clockwise` - Increment encoder value
+- `Direction::Anticlockwise` - Decrement encoder value
+- `Direction::None` - No change
 
-### GPIO Interrupt Handling
+### GPIO Polling
 
-Both encoder pins (CLK and DT on GPIO 21 and 22) trigger interrupts on any edge:
+Both encoder pins (CLK and DT on GPIO 21 and 22) are polled at high frequency:
 ```rust
-InterruptType::AnyEdge  // Triggers on both rising and falling edges
+// Poll at ~1000Hz (1ms delay)
+thread::sleep(Duration::from_millis(1));
 ```
 
-The interrupt handler:
-1. Reads both pin states atomically
-2. Processes the state machine
-3. Updates the encoder value
-4. All within the ISR context (keep it fast!)
+The polling loop:
+1. Reads both pin states
+2. Updates the encoder using rotary-encoder-embedded library
+3. Processes direction changes
+4. Updates the encoder value
+5. Handles target angle logic
 
 ### Output Control Logic
 
@@ -118,8 +118,9 @@ The web interface polls `/api/status` every 200ms for real-time updates:
 
 ### Performance Characteristics
 
-- **Interrupt Latency**: <10μs (handled on dedicated core)
-- **State Update Frequency**: ~20kHz (based on encoder speed)
+- **Polling Rate**: 1000Hz (~1ms between reads)
+- **Pin Read Latency**: <10μs
+- **State Update Frequency**: Up to 1000Hz (limited by polling rate)
 - **Web Update Rate**: 5Hz (200ms polling interval)
 - **WiFi Throughput**: Not critical (only status updates)
 - **Memory Usage**: 
@@ -132,8 +133,9 @@ The web interface polls `/api/status` every 200ms for real-time updates:
 1. **No Race Conditions**: All shared state uses atomic operations or mutexes
 2. **No Deadlocks**: Mutexes are held for minimal time, no nested locks
 3. **Bounded Memory**: Fixed-size allocations, no dynamic growth
-4. **Interrupt Safety**: ISR only accesses atomic/lock-free data structures
+4. **Polling Safety**: High-frequency polling ensures responsive encoder tracking
 5. **Error Recovery**: Each core can restart independently
+6. **Library-Based**: Uses well-tested rotary-encoder-embedded library for encoder logic
 
 ### Build Optimization
 
@@ -158,10 +160,11 @@ Possible improvements:
 
 | Feature | MicroPython | Rust |
 |---------|------------|------|
-| Performance | ~100μs interrupt latency | <10μs interrupt latency |
+| Performance | ~100μs polling interval | 1ms polling (1000Hz) |
 | Memory Safety | Runtime checks | Compile-time guarantees |
 | Concurrency | GIL limitations | True multi-core parallelism |
 | Web Server | Basic HTTP | Full-featured HTTP with async |
+| Encoder Library | Custom state machine | rotary-encoder-embedded |
 | Code Size | ~50KB | ~500KB (includes ESP-IDF) |
 | Development Speed | Fast prototyping | Longer compile times |
 | Reliability | Good | Excellent (type safety) |
