@@ -40,8 +40,33 @@
         .subtitle {
             color: #666;
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             font-size: 14px;
+        }
+        
+        .nav-links {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .nav-links a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            padding: 8px 16px;
+            border-radius: 8px;
+            transition: background-color 0.3s;
+        }
+        
+        .nav-links a:hover {
+            background-color: #f0f0f0;
+        }
+        
+        .nav-links a.active {
+            background-color: #667eea;
+            color: white;
         }
         
         .status-card {
@@ -191,54 +216,24 @@
             margin-top: 5px;
         }
         
-        .debug-section {
-            background: #fff3cd;
-            border: 2px solid #ffc107;
+        .current-angle-display {
+            background: #667eea;
+            color: white;
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 20px;
-            display: none;
-        }
-        
-        .debug-section.active {
-            display: block;
-        }
-        
-        .debug-section h3 {
-            color: #856404;
-            font-size: 16px;
-            margin-bottom: 15px;
             text-align: center;
         }
-        
-        .debug-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #f0e5c3;
+
+        .current-angle-display .label {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 5px;
         }
-        
-        .debug-row:last-child {
-            border-bottom: none;
-        }
-        
-        .debug-label {
-            color: #856404;
-            font-weight: 500;
-            font-size: 13px;
-        }
-        
-        .debug-value {
-            color: #333;
-            font-weight: 600;
-            font-size: 13px;
-            font-family: 'Courier New', monospace;
-        }
-        
-        .btn-debug {
-            background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
-            color: #333;
-            font-weight: 700;
+
+        .current-angle-display .value {
+            font-size: 48px;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -247,8 +242,18 @@
         <h1>🎛️ Wireless Rotary Encoder</h1>
         <p class="subtitle">ESP32 Dual-Core Control System</p>
         
+        <div class="nav-links">
+            <a href="/" class="active">Home</a>
+            <a href="/settings">Settings</a>
+        </div>
+        
         <div id="connectionStatus" class="connection-status disconnected">
             ⚠️ Connecting...
+        </div>
+        
+        <div class="current-angle-display">
+            <div class="label">Current Angle</div>
+            <div class="value" id="currentAngle">0.0°</div>
         </div>
         
         <div id="debugSection" class="debug-section">
@@ -277,20 +282,12 @@
         
         <div class="status-card">
             <div class="status-row">
-                <span class="status-label">Current Angle</span>
-                <span class="status-value" id="currentAngle">0.0°</span>
-            </div>
-            <div class="status-row">
                 <span class="status-label">Output Status</span>
                 <span class="output-indicator" id="outputIndicator"></span>
             </div>
             <div class="status-row">
                 <span class="status-label">Encoder Status</span>
                 <span class="status-value" id="encoderStatus">Stopped</span>
-            </div>
-            <div class="status-row">
-                <span class="status-label">Target Progress</span>
-                <span class="status-value" id="targetProgress">-</span>
             </div>
         </div>
         
@@ -304,16 +301,10 @@
             <button class="btn-primary" onclick="setAngles()">▶️ Start</button>
             <button class="btn-danger" onclick="stopEncoder()">⏹️ Stop</button>
         </div>
-        
-        <div class="button-group" style="margin-top: 15px;">
-            <button class="btn-debug" onclick="toggleDebugMode()">🔍 Toggle Debug Mode</button>
-        </div>
     </div>
     
     <script>
         let updateInterval;
-        let debugMode = false;
-        const HEX_PADDING_WIDTH = 2;
         
         function updateStatus() {
             fetch('/api/status')
@@ -329,15 +320,6 @@
                         outputIndicator.classList.remove('on');
                     }
                     
-                    if (data.target_angles.length > 0 && data.active) {
-                        const progress = `${data.current_target_index + 1} / ${data.target_angles.length}`;
-                        const currentTarget = data.target_angles[data.current_target_index];
-                        document.getElementById('targetProgress').textContent = 
-                            `${progress} (→ ${currentTarget.toFixed(1)}°)`;
-                    } else {
-                        document.getElementById('targetProgress').textContent = '-';
-                    }
-                    
                     // Update connection status
                     const statusElem = document.getElementById('connectionStatus');
                     statusElem.className = 'connection-status connected';
@@ -349,71 +331,6 @@
                     statusElem.className = 'connection-status disconnected';
                     statusElem.textContent = '❌ Connection Error';
                 });
-            
-            // Update debug info if debug mode is enabled
-            if (debugMode) {
-                updateDebugInfo();
-            }
-        }
-        
-        function updateDebugInfo() {
-            fetch('/api/debug/info')
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('debugClk').textContent = data.clk_pin ? 'HIGH (1)' : 'LOW (0)';
-                    document.getElementById('debugDt').textContent = data.dt_pin ? 'HIGH (1)' : 'LOW (0)';
-                    document.getElementById('debugState').textContent = '0x' + data.state_machine.toString(16).toUpperCase().padStart(HEX_PADDING_WIDTH, '0');
-                    document.getElementById('debugValue').textContent = data.raw_value;
-                    document.getElementById('debugAngle').textContent = data.angle.toFixed(1) + '°';
-                })
-                .catch(error => {
-                    console.error('Error fetching debug info:', error);
-                });
-        }
-        
-        function toggleDebugMode() {
-            debugMode = !debugMode;
-            
-            // Update UI
-            const debugSection = document.getElementById('debugSection');
-            if (debugMode) {
-                debugSection.classList.add('active');
-            } else {
-                debugSection.classList.remove('active');
-            }
-            
-            // Send debug mode state to server
-            fetch('/api/debug', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ enabled: debugMode })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    // Try to parse JSON error, but handle non-JSON responses
-                    return response.text().then(text => {
-                        try {
-                            const data = JSON.parse(text);
-                            throw new Error(data.message || 'Failed to set debug mode');
-                        } catch (e) {
-                            throw new Error('Failed to set debug mode: ' + response.statusText);
-                        }
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('Debug mode set:', debugMode);
-                if (debugMode) {
-                    updateDebugInfo();
-                }
-            })
-            .catch(error => {
-                console.error('Error setting debug mode:', error);
-                alert('Error setting debug mode: ' + (error.message || error));
-            });
         }
         
         function setAngles() {

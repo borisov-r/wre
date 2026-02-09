@@ -142,25 +142,43 @@ fn rotary_task(
                     drop(targets);
 
                     let steps = encoder_state.get_value();
-                    let angle = steps as f32 / 2.0;
-                    let target_angle = target as f32 / 2.0;
+                    let angle = encoder_state.get_angle();
+                    let settings = encoder_state.get_settings();
+                    let divisor = match settings.step_mode {
+                        crate::rotary::StepMode::Full => 1.0,
+                        crate::rotary::StepMode::Half => 2.0,
+                    };
+                    let target_angle = target as f32 / divisor;
 
-                    // Trigger output when reaching target (moving forward from 0)
-                    if !encoder_state.triggered.load(std::sync::atomic::Ordering::SeqCst) 
-                        && steps >= target {
-                        output.set_high()?;
-                        encoder_state.output_on.store(true, std::sync::atomic::Ordering::SeqCst);
-                        encoder_state.triggered.store(true, std::sync::atomic::Ordering::SeqCst);
-                        info!("⚡ Target reached: {:.1}°", target_angle);
-                    } else if encoder_state.triggered.load(std::sync::atomic::Ordering::SeqCst) {
-                        // Keep output on while above target
-                        if steps < target {
+                    // Check for manual output override
+                    if encoder_state.is_manual_output_override() {
+                        // Manual control is active, don't interfere
+                        let manual_state = encoder_state.get_manual_output_state();
+                        if manual_state {
+                            output.set_high()?;
+                        } else {
+                            output.set_low()?;
+                        }
+                        encoder_state.output_on.store(manual_state, std::sync::atomic::Ordering::SeqCst);
+                    } else {
+                        // Automatic output control based on target
+                        // Trigger output when reaching target (moving forward from 0)
+                        if !encoder_state.triggered.load(std::sync::atomic::Ordering::SeqCst) 
+                            && steps >= target {
+                            output.set_high()?;
+                            encoder_state.output_on.store(true, std::sync::atomic::Ordering::SeqCst);
+                            encoder_state.triggered.store(true, std::sync::atomic::Ordering::SeqCst);
+                            info!("⚡ Target reached: {:.1}°", target_angle);
+                        } else if encoder_state.triggered.load(std::sync::atomic::Ordering::SeqCst) {
+                            // Keep output on while above target
+                            if steps < target {
+                                output.set_low()?;
+                                encoder_state.output_on.store(false, std::sync::atomic::Ordering::SeqCst);
+                            }
+                        } else {
                             output.set_low()?;
                             encoder_state.output_on.store(false, std::sync::atomic::Ordering::SeqCst);
                         }
-                    } else {
-                        output.set_low()?;
-                        encoder_state.output_on.store(false, std::sync::atomic::Ordering::SeqCst);
                     }
 
                     // Reset encoder if angle drops below 2.5°
@@ -168,6 +186,8 @@ fn rotary_task(
                         encoder_state.set_value(0);
                         encoder_state.reset_detected.store(true, std::sync::atomic::Ordering::SeqCst);
                         encoder_state.triggered.store(false, std::sync::atomic::Ordering::SeqCst);
+                        // Clear manual override on reset
+                        encoder_state.clear_manual_output();
                         info!("🔄 Encoder reset to 0°");
 
                         // Advance to next target
@@ -195,6 +215,17 @@ fn rotary_task(
                 }
             } else {
                 drop(targets);
+            }
+        } else {
+            // When encoder is not active, check for manual output override
+            if encoder_state.is_manual_output_override() {
+                let manual_state = encoder_state.get_manual_output_state();
+                if manual_state {
+                    output.set_high()?;
+                } else {
+                    output.set_low()?;
+                }
+                encoder_state.output_on.store(manual_state, std::sync::atomic::Ordering::SeqCst);
             }
         }
         

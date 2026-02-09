@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Wireless Rotary Encoder</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            text-align: center;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #666;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .nav-links {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .nav-links a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            padding: 8px 16px;
+            border-radius: 8px;
+            transition: background-color 0.3s;
+        }
+        
+        .nav-links a:hover {
+            background-color: #f0f0f0;
+        }
+        
+        .nav-links a.active {
+            background-color: #667eea;
+            color: white;
+        }
+        
+        .settings-section {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 2px solid #e9ecef;
+        }
+        
+        .settings-section h3 {
+            color: #333;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+        
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .setting-row:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        
+        .setting-label {
+            color: #666;
+            font-weight: 500;
+            font-size: 14px;
+            flex: 1;
+        }
+        
+        .setting-control {
+            flex: 1;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        select, input[type="number"] {
+            padding: 8px 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+            min-width: 150px;
+        }
+        
+        select:focus, input[type="number"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .radio-group {
+            display: flex;
+            gap: 15px;
+        }
+        
+        .radio-option {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .radio-option input[type="radio"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        
+        .radio-option label {
+            cursor: pointer;
+            font-size: 14px;
+            color: #333;
+        }
+        
+        button {
+            padding: 14px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            width: 100%;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin-bottom: 10px;
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        
+        .btn-test {
+            background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+            color: #333;
+            font-weight: 700;
+        }
+        
+        .connection-status {
+            text-align: center;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        
+        .connection-status.connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .connection-status.disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .help-text {
+            color: #6c757d;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        
+        .output-indicator {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background-color: #dc3545;
+            transition: background-color 0.3s;
+            margin-left: 10px;
+        }
+        
+        .output-indicator.on {
+            background-color: #28a745;
+        }
+        
+        .test-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .current-angle-display {
+            background: #667eea;
+            color: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .current-angle-display .label {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+
+        .current-angle-display .value {
+            font-size: 48px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚙️ Settings</h1>
+        <p class="subtitle">Configure Encoder Parameters</p>
+        
+        <div class="nav-links">
+            <a href="/">Home</a>
+            <a href="/settings" class="active">Settings</a>
+        </div>
+        
+        <div id="connectionStatus" class="connection-status disconnected">
+            ⚠️ Connecting...
+        </div>
+        
+        <div class="current-angle-display">
+            <div class="label">Current Angle</div>
+            <div class="value" id="currentAngle">0.0°</div>
+        </div>
+        
+        <div class="settings-section">
+            <h3>Encoder Configuration</h3>
+            
+            <div class="setting-row">
+                <span class="setting-label">Forward Direction</span>
+                <div class="setting-control">
+                    <div class="radio-group">
+                        <div class="radio-option">
+                            <input type="radio" id="dirCW" name="direction" value="Clockwise">
+                            <label for="dirCW">Clockwise</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="dirCCW" name="direction" value="CounterClockwise">
+                            <label for="dirCCW">Counter-CW</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="setting-row">
+                <span class="setting-label">Step Mode</span>
+                <div class="setting-control">
+                    <div class="radio-group">
+                        <div class="radio-option">
+                            <input type="radio" id="stepFull" name="stepMode" value="Full">
+                            <label for="stepFull">Full (1°)</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="stepHalf" name="stepMode" value="Half">
+                            <label for="stepHalf">Half (0.5°)</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="settings-section">
+            <h3>Output Configuration</h3>
+            
+            <div class="setting-row">
+                <span class="setting-label">Output Pin (GPIO)</span>
+                <div class="setting-control">
+                    <input type="number" id="outputPin" min="0" max="39" value="32">
+                </div>
+            </div>
+            
+            <div class="setting-row">
+                <span class="setting-label">Default State</span>
+                <div class="setting-control">
+                    <div class="radio-group">
+                        <div class="radio-option">
+                            <input type="radio" id="stateLow" name="defaultState" value="Low">
+                            <label for="stateLow">Low</label>
+                        </div>
+                        <div class="radio-option">
+                            <input type="radio" id="stateHigh" name="defaultState" value="High">
+                            <label for="stateHigh">High</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="setting-row">
+                <span class="setting-label">Manual Output Control</span>
+                <div class="setting-control">
+                    <span>Current: <span class="output-indicator" id="outputIndicator"></span></span>
+                </div>
+            </div>
+            
+            <div class="test-controls">
+                <button class="btn-test" onclick="setOutputState(true)">Set HIGH</button>
+                <button class="btn-test" onclick="setOutputState(false)">Set LOW</button>
+            </div>
+            <div class="help-text">Use manual control for testing the output pin</div>
+        </div>
+        
+        <button class="btn-primary" onclick="saveSettings()">💾 Save Settings</button>
+        <button class="btn-secondary" onclick="window.location.href='/'">← Back to Home</button>
+    </div>
+    
+    <script>
+        let updateInterval;
+        
+        function updateStatus() {
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('currentAngle').textContent = data.angle.toFixed(1) + '°';
+                    
+                    const outputIndicator = document.getElementById('outputIndicator');
+                    if (data.output_on) {
+                        outputIndicator.classList.add('on');
+                    } else {
+                        outputIndicator.classList.remove('on');
+                    }
+                    
+                    // Update connection status
+                    const statusElem = document.getElementById('connectionStatus');
+                    statusElem.className = 'connection-status connected';
+                    statusElem.textContent = '✅ Connected';
+                })
+                .catch(error => {
+                    console.error('Error fetching status:', error);
+                    const statusElem = document.getElementById('connectionStatus');
+                    statusElem.className = 'connection-status disconnected';
+                    statusElem.textContent = '❌ Connection Error';
+                });
+        }
+        
+        function loadSettings() {
+            fetch('/api/settings')
+                .then(response => response.json())
+                .then(data => {
+                    // Set forward direction
+                    if (data.forward_direction === 'Clockwise') {
+                        document.getElementById('dirCW').checked = true;
+                    } else {
+                        document.getElementById('dirCCW').checked = true;
+                    }
+                    
+                    // Set step mode
+                    if (data.step_mode === 'Full') {
+                        document.getElementById('stepFull').checked = true;
+                    } else {
+                        document.getElementById('stepHalf').checked = true;
+                    }
+                    
+                    // Set output pin
+                    document.getElementById('outputPin').value = data.output_pin;
+                    
+                    // Set default state
+                    if (data.output_default_state === 'Low') {
+                        document.getElementById('stateLow').checked = true;
+                    } else {
+                        document.getElementById('stateHigh').checked = true;
+                    }
+                    
+                    console.log('Settings loaded:', data);
+                })
+                .catch(error => {
+                    console.error('Error loading settings:', error);
+                });
+        }
+        
+        function saveSettings() {
+            const settings = {
+                forward_direction: document.getElementById('dirCW').checked ? 'Clockwise' : 'CounterClockwise',
+                step_mode: document.getElementById('stepFull').checked ? 'Full' : 'Half',
+                output_pin: parseInt(document.getElementById('outputPin').value),
+                output_default_state: document.getElementById('stateLow').checked ? 'Low' : 'High'
+            };
+            
+            fetch('/api/settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(settings)
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Settings saved:', data);
+                alert('Settings saved successfully! Note: Output pin changes require a device restart.');
+            })
+            .catch(error => {
+                console.error('Error saving settings:', error);
+                alert('Error saving settings: ' + error);
+            });
+        }
+        
+        function setOutputState(state) {
+            fetch('/api/output/manual', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ state: state })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Output state set:', data);
+                updateStatus();
+            })
+            .catch(error => {
+                console.error('Error setting output state:', error);
+                alert('Error setting output state: ' + error);
+            });
+        }
+        
+        // Load settings on page load
+        loadSettings();
+        
+        // Start polling for status updates
+        updateStatus();
+        updateInterval = setInterval(updateStatus, 200);
+        
+        // Clean up interval when page is unloaded
+        window.addEventListener('beforeunload', function() {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+            }
+        });
+    </script>
+</body>
+</html>
