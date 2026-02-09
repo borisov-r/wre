@@ -163,8 +163,8 @@ fn rotary_task(
                         encoder_state.output_on.store(false, std::sync::atomic::Ordering::SeqCst);
                     }
 
-                    // Reset encoder if angle drops below 2°
-                    if angle < 2.0 && !encoder_state.reset_detected.load(std::sync::atomic::Ordering::SeqCst) {
+                    // Reset encoder if angle drops below 2.5°
+                    if angle < 2.5 && !encoder_state.reset_detected.load(std::sync::atomic::Ordering::SeqCst) {
                         encoder_state.set_value(0);
                         encoder_state.reset_detected.store(true, std::sync::atomic::Ordering::SeqCst);
                         encoder_state.triggered.store(false, std::sync::atomic::Ordering::SeqCst);
