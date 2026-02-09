@@ -149,7 +149,7 @@ espflash flash --monitor target/xtensa-esp32-espidf/release/wre
 - Uses rotary-encoder-embedded library for reliable encoder processing (half-step mode for 0.5° resolution)
 - Manages output pin control
 - Implements bounded range (0-720 half-steps = 0-360°)
-- Auto-resets when encoder returns below 2°
+- Auto-resets when encoder returns below 2.5°
 - Advances through target angles sequentially
 
 ### Cross-Core Communication
