@@ -1,4 +1,4 @@
-use crate::rotary::RotaryEncoderState;
+use crate::rotary::{RotaryEncoderState, Settings};
 use embedded_svc::io::Write;
 use embedded_svc::wifi::{AccessPointConfiguration, AuthMethod, ClientConfiguration, Configuration};
 use esp_idf_hal::modem::Modem;
@@ -75,6 +75,86 @@ struct DebugResponse {
     debug_mode: bool,
 }
 
+#[derive(Serialize, Deserialize)]
+struct ManualOutputRequest {
+    state: bool,
+}
+
+const SETTINGS_NVS_KEY: &str = "encoder_cfg";
+
+fn load_settings_from_nvs(nvs_partition: &EspDefaultNvsPartition) -> Option<Settings> {
+    match esp_idf_svc::nvs::EspNvs::new(nvs_partition.clone(), "storage", true) {
+        Ok(nvs) => {
+            let mut buf = [0u8; 256];
+            match nvs.get_raw(SETTINGS_NVS_KEY, &mut buf) {
+                Ok(Some(len)) => {
+                    match serde_json::from_slice::<Settings>(&buf[..len]) {
+                        Ok(settings) => {
+                            info!("Loaded settings from NVS: {:?}", settings);
+                            Some(settings)
+                        }
+                        Err(e) => {
+                            error!("Failed to deserialize settings from NVS: {:?}", e);
+                            None
+                        }
+                    }
+                }
+                Ok(None) => {
+                    info!("No settings found in NVS, using defaults");
+                    None
+                }
+                Err(e) => {
+                    error!("Failed to read settings from NVS: {:?}", e);
+                    None
+                }
+            }
+        }
+        Err(e) => {
+            error!("Failed to open NVS namespace: {:?}", e);
+            None
+        }
+    }
+}
+
+fn save_settings_to_nvs(settings: &Settings) -> anyhow::Result<()> {
+    use esp_idf_sys::{nvs_open, nvs_set_blob, nvs_commit, nvs_close, nvs_handle_t, NVS_READWRITE};
+    use std::ffi::CString;
+    
+    let json = serde_json::to_string(settings)
+        .map_err(|e| anyhow::anyhow!("Failed to serialize settings: {:?}", e))?;
+    
+    unsafe {
+        let mut handle: nvs_handle_t = 0;
+        let namespace = CString::new("storage").unwrap();
+        let key = CString::new(SETTINGS_NVS_KEY).unwrap();
+        
+        // Open NVS namespace
+        let err = nvs_open(namespace.as_ptr(), NVS_READWRITE, &mut handle as *mut _);
+        if err != 0 {
+            return Err(anyhow::anyhow!("Failed to open NVS namespace: error code {}", err));
+        }
+        
+        // Set blob data
+        let err = nvs_set_blob(handle, key.as_ptr(), json.as_ptr() as *const _, json.len());
+        if err != 0 {
+            nvs_close(handle);
+            return Err(anyhow::anyhow!("Failed to write settings to NVS: error code {}", err));
+        }
+        
+        // Commit changes
+        let err = nvs_commit(handle);
+        if err != 0 {
+            nvs_close(handle);
+            return Err(anyhow::anyhow!("Failed to commit NVS changes: error code {}", err));
+        }
+        
+        nvs_close(handle);
+    }
+    
+    info!("Settings saved to NVS successfully");
+    Ok(())
+}
+
 pub fn start_webserver(
     encoder_state: RotaryEncoderState,
     modem: Modem,
@@ -83,6 +163,11 @@ pub fn start_webserver(
 
     let sysloop = EspSystemEventLoop::take()?;
     let nvs = EspDefaultNvsPartition::take()?;
+
+    // Load settings from NVS if available
+    if let Some(settings) = load_settings_from_nvs(&nvs) {
+        encoder_state.set_settings(settings);
+    }
 
     let mut wifi = BlockingWifi::wrap(
         EspWifi::new(modem, sysloop.clone(), Some(nvs))?,
@@ -252,6 +337,88 @@ pub fn start_webserver(
             });
         req.into_response(200, Some("OK"), &[("Content-Type", "application/json")])?
             .write_all(json.as_bytes())?;
+        Ok::<(), anyhow::Error>(())
+    })?;
+
+    // Serve settings page
+    server.fn_handler("/settings", embedded_svc::http::Method::Get, move |req| {
+        let html = include_str!("../html/settings.html");
+        req.into_ok_response()?
+            .write_all(html.as_bytes())?;
+        Ok::<(), anyhow::Error>(())
+    })?;
+
+    // API: Get settings
+    let encoder_state_get_settings = encoder_state_handlers.clone();
+    server.fn_handler("/api/settings", embedded_svc::http::Method::Get, move |req| {
+        let settings = encoder_state_get_settings.get_settings();
+        
+        let json = serde_json::to_string(&settings)
+            .unwrap_or_else(|e| {
+                error!("Failed to serialize settings: {:?}", e);
+                r#"{"error":"serialization_failed"}"#.to_string()
+            });
+        req.into_response(200, Some("OK"), &[("Content-Type", "application/json")])?
+            .write_all(json.as_bytes())?;
+        Ok::<(), anyhow::Error>(())
+    })?;
+
+    // API: Save settings
+    let encoder_state_save_settings = encoder_state_handlers.clone();
+    server.fn_handler("/api/settings", embedded_svc::http::Method::Post, move |mut req| {
+        let mut buf = vec![0u8; 512];
+        let len = req.read(&mut buf)?;
+        
+        match serde_json::from_slice::<Settings>(&buf[..len]) {
+            Ok(settings) => {
+                info!("Saving settings: {:?}", settings);
+                encoder_state_save_settings.set_settings(settings.clone());
+                
+                // Try to save to NVS
+                match save_settings_to_nvs(&settings) {
+                    Ok(_) => {
+                        info!("Settings saved to NVS");
+                        req.into_response(200, Some("OK"), &[("Content-Type", "application/json")])?
+                            .write_all(b"{\"status\":\"ok\"}")?;
+                    }
+                    Err(e) => {
+                        error!("Failed to save settings to NVS: {:?}", e);
+                        req.into_response(200, Some("OK"), &[("Content-Type", "application/json")])?
+                            .write_all(b"{\"status\":\"ok\",\"warning\":\"Settings applied but not saved to flash\"}")?;
+                    }
+                }
+            }
+            Err(e) => {
+                error!("Failed to parse settings: {:?}", e);
+                let error_msg = format!(r#"{{"status":"error","message":"Invalid JSON: {}"}}"#, e);
+                req.into_response(400, Some("Bad Request"), &[("Content-Type", "application/json")])?
+                    .write_all(error_msg.as_bytes())?;
+            }
+        }
+        Ok::<(), anyhow::Error>(())
+    })?;
+
+    // API: Manual output control
+    let encoder_state_manual_output = encoder_state_handlers.clone();
+    server.fn_handler("/api/output/manual", embedded_svc::http::Method::Post, move |mut req| {
+        let mut buf = [0u8; 128];
+        let len = req.read(&mut buf)?;
+        
+        match serde_json::from_slice::<ManualOutputRequest>(&buf[..len]) {
+            Ok(request) => {
+                info!("Manual output control: state={}", request.state);
+                encoder_state_manual_output.set_manual_output(request.state);
+                
+                req.into_response(200, Some("OK"), &[("Content-Type", "application/json")])?
+                    .write_all(b"{\"status\":\"ok\"}")?;
+            }
+            Err(e) => {
+                error!("Failed to parse manual output request: {:?}", e);
+                let error_msg = format!(r#"{{"status":"error","message":"Invalid JSON: {}"}}"#, e);
+                req.into_response(400, Some("Bad Request"), &[("Content-Type", "application/json")])?
+                    .write_all(error_msg.as_bytes())?;
+            }
+        }
         Ok::<(), anyhow::Error>(())
     })?;
 

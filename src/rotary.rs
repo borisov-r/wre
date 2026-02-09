@@ -1,5 +1,43 @@
 use std::sync::{Arc, Mutex};
-use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU8, Ordering};
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Settings {
+    pub forward_direction: ForwardDirection,
+    pub step_mode: StepMode,
+    pub output_pin: u8,
+    pub output_default_state: PinState,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+pub enum ForwardDirection {
+    Clockwise,
+    CounterClockwise,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+pub enum StepMode {
+    Full,  // 1 degree per step
+    Half,  // 0.5 degrees per step
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+pub enum PinState {
+    Low,
+    High,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            forward_direction: ForwardDirection::Clockwise,
+            step_mode: StepMode::Half,
+            output_pin: 32,
+            output_default_state: PinState::Low,
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct RotaryEncoderState {
@@ -13,6 +51,9 @@ pub struct RotaryEncoderState {
     min_val: i32,
     max_val: i32,
     pub debug_mode: Arc<AtomicBool>,
+    pub settings: Arc<Mutex<Settings>>,
+    pub manual_output_override: Arc<AtomicBool>,
+    pub manual_output_state: Arc<AtomicBool>,
 }
 
 impl RotaryEncoderState {
@@ -28,6 +69,9 @@ impl RotaryEncoderState {
             min_val,
             max_val,
             debug_mode: Arc::new(AtomicBool::new(false)),
+            settings: Arc::new(Mutex::new(Settings::default())),
+            manual_output_override: Arc::new(AtomicBool::new(false)),
+            manual_output_state: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -40,7 +84,14 @@ impl RotaryEncoderState {
     }
 
     pub fn get_angle(&self) -> f32 {
-        self.get_value() as f32 / 2.0
+        let divisor = {
+            let settings = self.settings.lock().expect("Settings mutex poisoned");
+            match settings.step_mode {
+                StepMode::Full => 1.0,
+                StepMode::Half => 2.0,
+            }
+        };
+        self.get_value() as f32 / divisor
     }
 
     pub fn is_active(&self) -> bool {
@@ -52,14 +103,21 @@ impl RotaryEncoderState {
     }
 
     pub fn set_target_angles(&self, angles: Vec<f32>) {
+        let settings = self.settings.lock().expect("Settings mutex poisoned");
+        let multiplier = match settings.step_mode {
+            StepMode::Full => 1.0,
+            StepMode::Half => 2.0,
+        };
+        drop(settings);
+        
         let mut targets = self.target_angles.lock()
             .expect("Target angles mutex poisoned");
         targets.clear();
-        // Convert degrees to half-steps, with validation
+        // Convert degrees to steps, with validation
         for angle in angles {
             // Clamp angles to valid range [0, 360]
             let clamped_angle = angle.max(0.0).min(360.0);
-            targets.push((clamped_angle * 2.0) as i32);
+            targets.push((clamped_angle * multiplier) as i32);
         }
         *self.current_target_index.lock()
             .expect("Current target index mutex poisoned") = 0;
@@ -78,11 +136,18 @@ impl RotaryEncoderState {
     }
 
     pub fn get_target_angles(&self) -> Vec<f32> {
+        let settings = self.settings.lock().expect("Settings mutex poisoned");
+        let divisor = match settings.step_mode {
+            StepMode::Full => 1.0,
+            StepMode::Half => 2.0,
+        };
+        drop(settings);
+        
         self.target_angles
             .lock()
             .expect("Target angles mutex poisoned")
             .iter()
-            .map(|&v| v as f32 / 2.0)
+            .map(|&v| v as f32 / divisor)
             .collect()
     }
 
@@ -110,18 +175,51 @@ impl RotaryEncoderState {
     }
 
     // Update encoder value based on direction from rotary-encoder-embedded library
-    // Note: Direction is negated to match original behavior (reverse=true)
     pub fn update_from_direction(&self, direction: i32) {
         if direction != 0 {
+            let settings = self.settings.lock().expect("Settings mutex poisoned");
+            let forward_direction = settings.forward_direction;
+            drop(settings);
+            
             let old_value = self.get_value();
-            // Negate direction to maintain original reversed behavior
-            let new_value = self.bound(old_value - direction);
+            // Apply direction based on forward_direction setting
+            let adjusted_direction = match forward_direction {
+                ForwardDirection::Clockwise => direction,
+                ForwardDirection::CounterClockwise => -direction,
+            };
+            let new_value = self.bound(old_value + adjusted_direction);
             self.value.store(new_value, Ordering::SeqCst);
             
             if self.is_debug_mode() {
-                let angle = new_value as f32 / 2.0;
-                log::info!("🔍 DEBUG: Direction={} Value={} Angle={:.1}°", -direction, new_value, angle);
+                let angle = self.get_angle();
+                log::info!("🔍 DEBUG: Direction={} Value={} Angle={:.1}°", adjusted_direction, new_value, angle);
             }
         }
+    }
+
+    pub fn get_settings(&self) -> Settings {
+        self.settings.lock().expect("Settings mutex poisoned").clone()
+    }
+
+    pub fn set_settings(&self, new_settings: Settings) {
+        let mut settings = self.settings.lock().expect("Settings mutex poisoned");
+        *settings = new_settings;
+    }
+
+    pub fn set_manual_output(&self, state: bool) {
+        self.manual_output_override.store(true, Ordering::SeqCst);
+        self.manual_output_state.store(state, Ordering::SeqCst);
+    }
+
+    pub fn clear_manual_output(&self) {
+        self.manual_output_override.store(false, Ordering::SeqCst);
+    }
+
+    pub fn is_manual_output_override(&self) -> bool {
+        self.manual_output_override.load(Ordering::SeqCst)
+    }
+
+    pub fn get_manual_output_state(&self) -> bool {
+        self.manual_output_state.load(Ordering::SeqCst)
     }
 }
