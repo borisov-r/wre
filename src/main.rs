@@ -213,9 +213,25 @@ fn rotary_task(
                         let targets = encoder_state.target_angles.lock()
                             .expect("Target angles mutex poisoned");
                         if new_idx >= targets.len() {
-                            info!("✅ All targets completed and returned to 0°.");
-                            encoder_state.stop();
-                            output.set_low()?;
+                            // All targets for this run completed
+                            let current_run = encoder_state.get_current_run();
+                            let total_runs = encoder_state.get_total_runs();
+                            info!("✅ Run {}/{} completed and returned to 0°.", current_run, total_runs);
+                            
+                            if current_run < total_runs {
+                                // Start next run
+                                encoder_state.increment_current_run();
+                                let mut idx = encoder_state.current_target_index.lock()
+                                    .expect("Current target index mutex poisoned");
+                                *idx = 0;
+                                drop(idx);
+                                info!("🔄 Starting run {}/{}...", encoder_state.get_current_run(), total_runs);
+                            } else {
+                                // All runs completed
+                                info!("✅ All {} runs completed!", total_runs);
+                                encoder_state.stop();
+                                output.set_low()?;
+                            }
                         }
                         drop(targets);
                     }
