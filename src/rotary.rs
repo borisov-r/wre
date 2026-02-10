@@ -12,6 +12,7 @@ pub struct Settings {
     pub hold_output_until_threshold: bool,
     pub debug_enabled: bool,
     pub num_target_angles: u8,
+    pub tick_size_multiplier: f32,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
@@ -43,6 +44,7 @@ impl Default for Settings {
             hold_output_until_threshold: false,
             debug_enabled: false,
             num_target_angles: 1,
+            tick_size_multiplier: 2.0,
         }
     }
 }
