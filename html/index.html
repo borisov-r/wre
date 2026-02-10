@@ -103,8 +103,16 @@
 
         .status-item {
             display: flex;
+            flex-direction: column;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
+        }
+        
+        .status-separator {
+            width: 1px;
+            height: 40px;
+            background-color: #dee2e6;
+            margin: 0 20px;
         }
         
         .status-label {
@@ -335,10 +343,12 @@
                     <span class="status-label">Output Status</span>
                     <span class="output-indicator" id="outputIndicator"></span>
                 </div>
+                <div class="status-separator"></div>
                 <div class="status-item">
                     <span class="status-label">Encoder Status</span>
                     <span class="status-value" id="encoderStatus">Stopped</span>
                 </div>
+                <div class="status-separator"></div>
                 <div class="status-item">
                     <span class="status-label">Current Angle</span>
                     <span id="currentAngle" class="current-angle-value">0.0°</span>
