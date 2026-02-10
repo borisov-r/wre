@@ -323,20 +323,28 @@
             <h3>Display Configuration</h3>
             
             <div class="setting-row">
-                <span class="setting-label">Tick Size Multiplier</span>
-                <div class="setting-control">
-                    <input type="number" id="tickSizeMultiplier" min="0.5" max="5" step="0.5" value="2.0">
+                <div style="flex: 1;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                        <span class="setting-label">Tick Size Multiplier</span>
+                        <div class="setting-control">
+                            <input type="number" id="tickSizeMultiplier" min="0.5" max="5" step="0.5" value="2.0">
+                        </div>
+                    </div>
+                    <div class="help-text">Adjust the size of the checkmark (✓) and cross (✗) symbols on the Home page</div>
                 </div>
             </div>
-            <div class="help-text">Adjust the size of the checkmark (✓) and cross (✗) symbols on the Home page</div>
             
             <div class="setting-row">
-                <span class="setting-label">Update Rate (ms)</span>
-                <div class="setting-control">
-                    <input type="number" id="updateRateMs" min="1" max="200" step="1" value="200">
+                <div style="flex: 1;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                        <span class="setting-label">Update Rate (ms)</span>
+                        <div class="setting-control">
+                            <input type="number" id="updateRateMs" min="1" max="200" step="1" value="200">
+                        </div>
+                    </div>
+                    <div class="help-text">How often the browser updates the target angle display (1-200 milliseconds)</div>
                 </div>
             </div>
-            <div class="help-text">How often the browser updates the target angle display (1-200 milliseconds)</div>
         </div>
         
         <div class="settings-section">
@@ -366,12 +374,16 @@
             </div>
             
             <div class="setting-row">
-                <span class="setting-label">Hold Output Until Threshold</span>
-                <div class="setting-control">
-                    <input type="checkbox" id="holdOutputUntilThreshold" style="width: 20px; height: 20px; cursor: pointer;">
+                <div style="flex: 1;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                        <span class="setting-label">Hold Output Until Threshold</span>
+                        <div class="setting-control">
+                            <input type="checkbox" id="holdOutputUntilThreshold" style="width: 20px; height: 20px; cursor: pointer;">
+                        </div>
+                    </div>
+                    <div class="help-text">Keep output HIGH until angle drops below minimum threshold</div>
                 </div>
             </div>
-            <div class="help-text">Keep output HIGH until angle drops below minimum threshold</div>
             
             <div class="setting-row">
                 <span class="setting-label">Manual Output Control</span>
