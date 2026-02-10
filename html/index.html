@@ -91,6 +91,21 @@
             padding-bottom: 0;
             border-bottom: none;
         }
+
+        .status-row-combined {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
         
         .status-label {
             color: #666;
@@ -282,13 +297,15 @@
         </div>
         
         <div class="status-card">
-            <div class="status-row">
-                <span class="status-label">Output Status</span>
-                <span class="output-indicator" id="outputIndicator"></span>
-            </div>
-            <div class="status-row">
-                <span class="status-label">Encoder Status</span>
-                <span class="status-value" id="encoderStatus">Stopped</span>
+            <div class="status-row-combined">
+                <div class="status-item">
+                    <span class="status-label">Output Status</span>
+                    <span class="output-indicator" id="outputIndicator"></span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Encoder Status</span>
+                    <span class="status-value" id="encoderStatus">Stopped</span>
+                </div>
             </div>
         </div>
         
@@ -313,14 +330,26 @@
     
     <script>
         let updateInterval;
+        let targetEverReached = false;  // Track if target was reached in this session
         
         // Helper function to set checkbox to not-reached state
         function setCheckboxNotReached() {
+            targetEverReached = false;  // Reset the flag
             const targetStatusIndicator = document.getElementById('targetStatusIndicator');
             if (targetStatusIndicator) {
                 targetStatusIndicator.classList.remove('reached');
                 targetStatusIndicator.classList.add('not-reached');
                 targetStatusIndicator.textContent = '✗';
+            }
+        }
+        
+        // Helper function to set checkbox to reached state
+        function setCheckboxReached() {
+            const targetStatusIndicator = document.getElementById('targetStatusIndicator');
+            if (targetStatusIndicator) {
+                targetStatusIndicator.classList.remove('not-reached');
+                targetStatusIndicator.classList.add('reached');
+                targetStatusIndicator.textContent = '✓';
             }
         }
         
@@ -343,8 +372,14 @@
                         currentAngleElem.textContent = data.angle.toFixed(1) + '°';
                     }
                     
-                    // Target status indicator is manually controlled via Start/Stop buttons 
-                    // to preserve state across server updates (both buttons set it to ✗)
+                    // Update target status indicator based on target_reached from API
+                    // Once reached, keep it reached until Start/Stop is clicked
+                    if (data.target_reached) {
+                        targetEverReached = true;
+                    }
+                    if (targetEverReached) {
+                        setCheckboxReached();
+                    }
                     
                     // Update connection status
                     const statusElem = document.getElementById('connectionStatus');
