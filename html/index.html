@@ -223,13 +223,14 @@
         }
         
         .angle-input-wrapper input {
-            flex: 1;
+            width: 180px;
         }
         
         .current-angle-display {
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             align-items: center;
+            gap: 8px;
         }
         
         .current-angle-label {
@@ -242,15 +243,16 @@
             color: #667eea;
             font-size: 24px;
             font-weight: 700;
+            width: 80px;
+            text-align: center;
         }
 
         .target-status-indicator {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 20px;
-            height: 20px;
-            margin-left: 8px;
+            width: 24px;
+            height: 24px;
             font-size: 14px;
             font-weight: bold;
         }
@@ -297,8 +299,8 @@
                 <div class="current-angle-display">
                     <span class="current-angle-label">Current</span>
                     <span id="currentAngle" class="current-angle-value">0.0°</span>
-                    <span id="targetStatusIndicator" class="target-status-indicator not-reached">✗</span>
                 </div>
+                <span id="targetStatusIndicator" class="target-status-indicator not-reached">✗</span>
             </div>
             <div class="help-text">Enter target angle (0-270° in 0.5° increments)</div>
         </div>
@@ -311,6 +313,16 @@
     
     <script>
         let updateInterval;
+        
+        // Helper function to set checkbox to not-reached state
+        function setCheckboxNotReached() {
+            const targetStatusIndicator = document.getElementById('targetStatusIndicator');
+            if (targetStatusIndicator) {
+                targetStatusIndicator.classList.remove('reached');
+                targetStatusIndicator.classList.add('not-reached');
+                targetStatusIndicator.textContent = '✗';
+            }
+        }
         
         function updateStatus() {
             fetch('/api/status')
@@ -331,19 +343,8 @@
                         currentAngleElem.textContent = data.angle.toFixed(1) + '°';
                     }
                     
-                    // Update target status indicator
-                    const targetStatusIndicator = document.getElementById('targetStatusIndicator');
-                    if (targetStatusIndicator) {
-                        if (data.target_reached) {
-                            targetStatusIndicator.classList.remove('not-reached');
-                            targetStatusIndicator.classList.add('reached');
-                            targetStatusIndicator.textContent = '✓';
-                        } else {
-                            targetStatusIndicator.classList.remove('reached');
-                            targetStatusIndicator.classList.add('not-reached');
-                            targetStatusIndicator.textContent = '✗';
-                        }
-                    }
+                    // Target status indicator is manually controlled via Start/Stop buttons 
+                    // to preserve state across server updates (both buttons set it to ✗)
                     
                     // Update connection status
                     const statusElem = document.getElementById('connectionStatus');
@@ -372,6 +373,9 @@
                 return;
             }
             
+            // Set checkbox to ✗ when Start is clicked
+            setCheckboxNotReached();
+            
             fetch('/api/set', {
                 method: 'POST',
                 headers: {
@@ -391,6 +395,9 @@
         }
         
         function stopEncoder() {
+            // Set checkbox to ✗ when Stop is clicked
+            setCheckboxNotReached();
+            
             fetch('/api/stop', {
                 method: 'POST'
             })
