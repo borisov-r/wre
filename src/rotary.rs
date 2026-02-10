@@ -154,6 +154,8 @@ impl RotaryEncoderState {
         self.output_on.store(false, Ordering::SeqCst);
         // Reset angle to 0 when Stop button is pressed
         self.set_value(0);
+        // Reset run counter when stopping
+        self.reset_current_run();
     }
 
     pub fn get_target_angles(&self) -> Vec<f32> {

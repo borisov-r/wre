@@ -221,10 +221,8 @@ fn rotary_task(
                             if current_run < total_runs {
                                 // Start next run
                                 encoder_state.increment_current_run();
-                                let mut idx = encoder_state.current_target_index.lock()
-                                    .expect("Current target index mutex poisoned");
-                                *idx = 0;
-                                drop(idx);
+                                *encoder_state.current_target_index.lock()
+                                    .expect("Current target index mutex poisoned") = 0;
                                 info!("🔄 Starting run {}/{}...", encoder_state.get_current_run(), total_runs);
                             } else {
                                 // All runs completed
