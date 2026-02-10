@@ -343,8 +343,8 @@
                         currentAngleElem.textContent = data.angle.toFixed(1) + '°';
                     }
                     
-                    // Note: target status indicator is now only updated on Start/Stop button clicks (both set it to ✗)
-                    // and is no longer automatically updated based on target_reached from status updates
+                    // Target status indicator is manually controlled via Start/Stop buttons 
+                    // to preserve state across server updates (both buttons set it to ✗)
                     
                     // Update connection status
                     const statusElem = document.getElementById('connectionStatus');
