@@ -387,6 +387,15 @@
         let targetEverReached = false;  // Track if target was reached in this session
         let numTargetAngles = 1;  // Default to 1, will be loaded from settings
         
+        // Helper function to set up status updates with the specified interval
+        function setupStatusUpdates(intervalMs) {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+            }
+            updateStatus();  // Initial update
+            updateInterval = setInterval(updateStatus, intervalMs);
+        }
+        
         // Load settings to determine number of target angles and tick size
         function loadSettings() {
             fetch('/api/settings')
@@ -405,11 +414,17 @@
                     }
                     
                     generateTargetAngleInputs();
+                    
+                    // Set up the update interval with the configured rate
+                    const updateRateMs = data.update_rate_ms || 200;
+                    setupStatusUpdates(updateRateMs);
                 })
                 .catch(error => {
                     console.error('Error loading settings:', error);
                     numTargetAngles = 1;
                     generateTargetAngleInputs();
+                    // Fallback to default 200ms on error
+                    setupStatusUpdates(200);
                 });
         }
         
@@ -616,11 +631,8 @@
         }
         
         // Load number of target angles and generate inputs on page load
+        // Note: This also sets up the status update interval
         loadSettings();
-        
-        // Start polling for status updates
-        updateStatus();
-        updateInterval = setInterval(updateStatus, 200);
         
         // Clean up interval when page is unloaded
         window.addEventListener('beforeunload', function() {

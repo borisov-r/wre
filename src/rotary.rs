@@ -14,6 +14,7 @@ pub struct Settings {
     pub num_target_angles: u8,
     pub tick_size_multiplier: f32,
     pub number_of_runs: u32,
+    pub update_rate_ms: u32,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
@@ -47,6 +48,7 @@ impl Default for Settings {
             num_target_angles: 1,
             tick_size_multiplier: 2.0,
             number_of_runs: 1,
+            update_rate_ms: 200,
         }
     }
 }
