@@ -383,7 +383,14 @@ pub fn start_webserver(
         let len = req.read(&mut buf)?;
         
         match serde_json::from_slice::<Settings>(&buf[..len]) {
-            Ok(settings) => {
+            Ok(mut settings) => {
+                // Validate update_rate_ms is within acceptable range (1-200ms)
+                if settings.update_rate_ms < 1 || settings.update_rate_ms > 200 {
+                    error!("Invalid update_rate_ms: {} (must be 1-200)", settings.update_rate_ms);
+                    settings.update_rate_ms = settings.update_rate_ms.clamp(1, 200);
+                    info!("Clamped update_rate_ms to: {}", settings.update_rate_ms);
+                }
+                
                 info!("Saving settings: {:?}", settings);
                 encoder_state_save_settings.set_settings(settings.clone());
                 
