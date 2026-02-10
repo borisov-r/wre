@@ -11,6 +11,7 @@ pub struct Settings {
     pub minimum_angle_threshold: f32,
     pub hold_output_until_threshold: bool,
     pub debug_enabled: bool,
+    pub num_target_angles: u8,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
@@ -41,6 +42,7 @@ impl Default for Settings {
             minimum_angle_threshold: 2.5,
             hold_output_until_threshold: false,
             debug_enabled: false,
+            num_target_angles: 1,
         }
     }
 }

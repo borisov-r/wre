@@ -256,6 +256,25 @@
             <h3>Encoder Configuration</h3>
             
             <div class="setting-row">
+                <span class="setting-label">Number of Target Angles</span>
+                <div class="setting-control">
+                    <select id="numTargetAngles">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                        <option value="6">6</option>
+                        <option value="7">7</option>
+                        <option value="8">8</option>
+                        <option value="9">9</option>
+                        <option value="10">10</option>
+                    </select>
+                </div>
+            </div>
+            <div class="help-text">Select how many target angle inputs to show on the Home page</div>
+            
+            <div class="setting-row">
                 <span class="setting-label">Forward Direction</span>
                 <div class="setting-control">
                     <div class="radio-group">
@@ -405,6 +424,11 @@
             fetch('/api/settings')
                 .then(response => response.json())
                 .then(data => {
+                    // Set number of target angles
+                    if (data.num_target_angles) {
+                        document.getElementById('numTargetAngles').value = data.num_target_angles;
+                    }
+                    
                     // Set forward direction
                     if (data.forward_direction === 'Clockwise') {
                         document.getElementById('dirCW').checked = true;
@@ -454,7 +478,8 @@
                 output_default_state: document.getElementById('stateLow').checked ? 'Low' : 'High',
                 minimum_angle_threshold: parseFloat(document.getElementById('minAngleThreshold').value),
                 hold_output_until_threshold: document.getElementById('holdOutputUntilThreshold').checked,
-                debug_enabled: debugEnabledElem ? debugEnabledElem.checked : false
+                debug_enabled: debugEnabledElem ? debugEnabledElem.checked : false,
+                num_target_angles: parseInt(document.getElementById('numTargetAngles').value)
             };
             
             fetch('/api/settings', {
