@@ -377,7 +377,7 @@
         let numTargetAngles = 1;  // Default to 1, will be loaded from settings
         
         // Load settings to determine number of target angles and tick size
-        function loadNumTargetAngles() {
+        function loadSettings() {
             fetch('/api/settings')
                 .then(response => response.json())
                 .then(data => {
@@ -564,7 +564,7 @@
         }
         
         // Load number of target angles and generate inputs on page load
-        loadNumTargetAngles();
+        loadSettings();
         
         // Start polling for status updates
         updateStatus();
