@@ -505,7 +505,7 @@
                         debug_enabled: debugEnabledElem ? debugEnabledElem.checked : false,
                         num_target_angles: parseInt(document.getElementById('numTargetAngles').value),
                         tick_size_multiplier: parseFloat(document.getElementById('tickSizeMultiplier').value),
-                        number_of_runs: currentSettings.number_of_runs || 1  // Preserve existing value
+                        number_of_runs: currentSettings.number_of_runs !== undefined ? currentSettings.number_of_runs : 1  // Preserve existing value
                     };
                     
                     return fetch('/api/settings', {
