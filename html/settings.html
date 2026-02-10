@@ -311,12 +311,16 @@
             </div>
             
             <div class="setting-row">
-                <span class="setting-label">Minimum Angle Threshold (°)</span>
-                <div class="setting-control">
-                    <input type="number" id="minAngleThreshold" min="0" max="10" step="0.1" value="2.5">
+                <div style="flex: 1;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                        <span class="setting-label">Minimum Angle Threshold (°)</span>
+                        <div class="setting-control">
+                            <input type="number" id="minAngleThreshold" min="0" max="10" step="0.1" value="2.5">
+                        </div>
+                    </div>
+                    <div class="help-text">Angle below which the encoder is considered to be at 0°</div>
                 </div>
             </div>
-            <div class="help-text">Angle below which the encoder is considered to be at 0°</div>
         </div>
         
         <div class="settings-section">
@@ -403,12 +407,16 @@
             <h3>Debug Options</h3>
             
             <div class="setting-row">
-                <span class="setting-label">Enable Debug Mode</span>
-                <div class="setting-control">
-                    <input type="checkbox" id="debugEnabled" style="width: 20px; height: 20px; cursor: pointer;">
+                <div style="flex: 1;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                        <span class="setting-label">Enable Debug Mode</span>
+                        <div class="setting-control">
+                            <input type="checkbox" id="debugEnabled" style="width: 20px; height: 20px; cursor: pointer;">
+                        </div>
+                    </div>
+                    <div class="help-text">Show debug messages in serial console including angle values and encoder movements</div>
                 </div>
             </div>
-            <div class="help-text">Show debug messages in serial console including angle values and encoder movements</div>
             
             <div class="setting-row">
                 <span class="setting-label">Current Angle</span>
