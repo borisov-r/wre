@@ -313,6 +313,16 @@
     <script>
         let updateInterval;
         
+        // Helper function to set checkbox to not-reached state
+        function setCheckboxNotReached() {
+            const targetStatusIndicator = document.getElementById('targetStatusIndicator');
+            if (targetStatusIndicator) {
+                targetStatusIndicator.classList.remove('reached');
+                targetStatusIndicator.classList.add('not-reached');
+                targetStatusIndicator.textContent = '✗';
+            }
+        }
+        
         function updateStatus() {
             fetch('/api/status')
                 .then(response => response.json())
@@ -332,8 +342,8 @@
                         currentAngleElem.textContent = data.angle.toFixed(1) + '°';
                     }
                     
-                    // Note: target status indicator is now only updated on Start/Stop button clicks
-                    // not based on target_reached from status updates
+                    // Note: target status indicator is now only updated on Start/Stop button clicks (both set it to ✗)
+                    // and is no longer automatically updated based on target_reached from status updates
                     
                     // Update connection status
                     const statusElem = document.getElementById('connectionStatus');
@@ -363,12 +373,7 @@
             }
             
             // Set checkbox to ✗ when Start is clicked
-            const targetStatusIndicator = document.getElementById('targetStatusIndicator');
-            if (targetStatusIndicator) {
-                targetStatusIndicator.classList.remove('reached');
-                targetStatusIndicator.classList.add('not-reached');
-                targetStatusIndicator.textContent = '✗';
-            }
+            setCheckboxNotReached();
             
             fetch('/api/set', {
                 method: 'POST',
@@ -390,12 +395,7 @@
         
         function stopEncoder() {
             // Set checkbox to ✗ when Stop is clicked
-            const targetStatusIndicator = document.getElementById('targetStatusIndicator');
-            if (targetStatusIndicator) {
-                targetStatusIndicator.classList.remove('reached');
-                targetStatusIndicator.classList.add('not-reached');
-                targetStatusIndicator.textContent = '✗';
-            }
+            setCheckboxNotReached();
             
             fetch('/api/stop', {
                 method: 'POST'
