@@ -154,6 +154,25 @@
             font-size: 14px;
         }
         
+        .target-angles-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .angle-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .angle-row-label {
+            min-width: 80px;
+            color: #666;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        
         .input-group input {
             width: 100%;
             padding: 12px 16px;
@@ -164,6 +183,20 @@
         }
         
         .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .angle-row input {
+            width: 180px;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .angle-row input:focus {
             outline: none;
             border-color: #667eea;
         }
@@ -297,7 +330,7 @@
         </div>
         
         <div class="status-card">
-            <div class="status-row-combined">
+            <div class="status-row">
                 <div class="status-item">
                     <span class="status-label">Output Status</span>
                     <span class="output-indicator" id="outputIndicator"></span>
@@ -307,19 +340,20 @@
                     <span class="status-value" id="encoderStatus">Stopped</span>
                 </div>
             </div>
+            <div class="status-row">
+                <div class="status-item">
+                    <span class="status-label">Current Angle</span>
+                    <span id="currentAngle" class="current-angle-value">0.0°</span>
+                </div>
+            </div>
         </div>
         
         <div class="input-group">
-            <label for="angles">Target Angle (degrees)</label>
-            <div class="angle-input-wrapper">
-                <input type="number" id="angles" min="0" max="270" step="0.5" value="45">
-                <div class="current-angle-display">
-                    <span class="current-angle-label">Current</span>
-                    <span id="currentAngle" class="current-angle-value">0.0°</span>
-                </div>
-                <span id="targetStatusIndicator" class="target-status-indicator not-reached">✗</span>
+            <label>Target Angles (degrees)</label>
+            <div id="targetAnglesContainer" class="target-angles-container">
+                <!-- Target angle inputs will be dynamically generated here -->
             </div>
-            <div class="help-text">Enter target angle (0-270° in 0.5° increments)</div>
+            <div class="help-text">Enter target angles (0-270° in 0.5° increments)</div>
         </div>
         
         <div class="button-group">
@@ -331,11 +365,60 @@
     <script>
         let updateInterval;
         let targetEverReached = false;  // Track if target was reached in this session
+        let numTargetAngles = 1;  // Default to 1, will be loaded from settings
+        
+        // Load settings to determine number of target angles
+        function loadNumTargetAngles() {
+            fetch('/api/settings')
+                .then(response => response.json())
+                .then(data => {
+                    numTargetAngles = data.num_target_angles || 1;
+                    generateTargetAngleInputs();
+                })
+                .catch(error => {
+                    console.error('Error loading settings:', error);
+                    numTargetAngles = 1;
+                    generateTargetAngleInputs();
+                });
+        }
+        
+        // Generate target angle input fields based on numTargetAngles
+        function generateTargetAngleInputs() {
+            const container = document.getElementById('targetAnglesContainer');
+            container.innerHTML = '';
+            
+            for (let i = 0; i < numTargetAngles; i++) {
+                const angleRow = document.createElement('div');
+                angleRow.className = 'angle-row';
+                
+                const label = document.createElement('span');
+                label.className = 'angle-row-label';
+                label.textContent = `Target ${i + 1}:`;
+                
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.id = `angle${i}`;
+                input.className = 'angle-input';
+                input.min = '0';
+                input.max = '270';
+                input.step = '0.5';
+                input.value = i === 0 ? '45' : '0';
+                
+                const statusIndicator = document.createElement('span');
+                statusIndicator.id = `targetStatus${i}`;
+                statusIndicator.className = 'target-status-indicator not-reached';
+                statusIndicator.textContent = '✗';
+                
+                angleRow.appendChild(label);
+                angleRow.appendChild(input);
+                angleRow.appendChild(statusIndicator);
+                container.appendChild(angleRow);
+            }
+        }
         
         // Helper function to set checkbox to not-reached state
-        function setCheckboxNotReached() {
-            targetEverReached = false;  // Reset the flag
-            const targetStatusIndicator = document.getElementById('targetStatusIndicator');
+        function setCheckboxNotReached(index) {
+            const targetStatusIndicator = document.getElementById(`targetStatus${index}`);
             if (targetStatusIndicator) {
                 targetStatusIndicator.classList.remove('reached');
                 targetStatusIndicator.classList.add('not-reached');
@@ -344,12 +427,20 @@
         }
         
         // Helper function to set checkbox to reached state
-        function setCheckboxReached() {
-            const targetStatusIndicator = document.getElementById('targetStatusIndicator');
+        function setCheckboxReached(index) {
+            const targetStatusIndicator = document.getElementById(`targetStatus${index}`);
             if (targetStatusIndicator) {
                 targetStatusIndicator.classList.remove('not-reached');
                 targetStatusIndicator.classList.add('reached');
                 targetStatusIndicator.textContent = '✓';
+            }
+        }
+        
+        // Reset all checkboxes to not-reached
+        function resetAllCheckboxes() {
+            targetEverReached = false;
+            for (let i = 0; i < numTargetAngles; i++) {
+                setCheckboxNotReached(i);
             }
         }
         
@@ -372,13 +463,19 @@
                         currentAngleElem.textContent = data.angle.toFixed(1) + '°';
                     }
                     
-                    // Update target status indicator based on target_reached from API
-                    // Once reached, keep it reached until Start/Stop is clicked
-                    if (data.target_reached) {
-                        targetEverReached = true;
-                    }
-                    if (targetEverReached) {
-                        setCheckboxReached();
+                    // Update target status indicators based on current_target_index
+                    if (data.active && data.current_target_index !== undefined) {
+                        const currentIndex = data.current_target_index;
+                        
+                        // Mark all targets before current as reached
+                        for (let i = 0; i < currentIndex && i < numTargetAngles; i++) {
+                            setCheckboxReached(i);
+                        }
+                        
+                        // If target_reached is true, mark the current target as reached
+                        if (data.target_reached && currentIndex < numTargetAngles) {
+                            setCheckboxReached(currentIndex);
+                        }
                     }
                     
                     // Update connection status
@@ -395,43 +492,48 @@
         }
         
         function setAngles() {
-            const angleInput = document.getElementById('angles').value;
-            const angle = parseFloat(angleInput);
-            
-            if (isNaN(angle)) {
-                alert('Please enter a valid angle');
-                return;
+            // Collect all angle values
+            const angles = [];
+            for (let i = 0; i < numTargetAngles; i++) {
+                const angleInput = document.getElementById(`angle${i}`);
+                if (angleInput) {
+                    const angle = parseFloat(angleInput.value);
+                    if (isNaN(angle)) {
+                        alert(`Please enter a valid angle for Target ${i + 1}`);
+                        return;
+                    }
+                    if (angle < 0 || angle > 270) {
+                        alert(`Angle ${i + 1} must be between 0 and 270 degrees`);
+                        return;
+                    }
+                    angles.push(angle);
+                }
             }
             
-            if (angle < 0 || angle > 270) {
-                alert('Angle must be between 0 and 270 degrees');
-                return;
-            }
-            
-            // Set checkbox to ✗ when Start is clicked
-            setCheckboxNotReached();
+            // Reset all checkboxes to ✗ when Start is clicked
+            resetAllCheckboxes();
             
             fetch('/api/set', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ angles: [angle] })
+                body: JSON.stringify({ angles: angles })
             })
             .then(response => response.json())
             .then(data => {
-                console.log('Angle set successfully:', data);
+                console.log('Angles set successfully:', data);
                 updateStatus();
             })
             .catch(error => {
-                console.error('Error setting angle:', error);
-                alert('Error setting angle: ' + error);
+                console.error('Error setting angles:', error);
+                alert('Error setting angles: ' + error);
             });
         }
         
         function stopEncoder() {
-            // Set checkbox to ✗ when Stop is clicked
-            setCheckboxNotReached();
+            // Reset all checkboxes to ✗ when Stop is clicked
+            resetAllCheckboxes();
             
             fetch('/api/stop', {
                 method: 'POST'
@@ -446,6 +548,9 @@
                 alert('Error stopping encoder: ' + error);
             });
         }
+        
+        // Load number of target angles and generate inputs on page load
+        loadNumTargetAngles();
         
         // Start polling for status updates
         updateStatus();
