@@ -13,6 +13,7 @@ pub struct Settings {
     pub debug_enabled: bool,
     pub num_target_angles: u8,
     pub tick_size_multiplier: f32,
+    pub number_of_runs: u32,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
@@ -45,6 +46,7 @@ impl Default for Settings {
             debug_enabled: false,
             num_target_angles: 1,
             tick_size_multiplier: 2.0,
+            number_of_runs: 1,
         }
     }
 }
@@ -64,6 +66,8 @@ pub struct RotaryEncoderState {
     pub settings: Arc<Mutex<Settings>>,
     pub manual_output_override: Arc<AtomicBool>,
     pub manual_output_state: Arc<AtomicBool>,
+    pub current_run: Arc<AtomicI32>,
+    pub total_runs: Arc<AtomicI32>,
 }
 
 impl RotaryEncoderState {
@@ -82,6 +86,8 @@ impl RotaryEncoderState {
             settings: Arc::new(Mutex::new(Settings::default())),
             manual_output_override: Arc::new(AtomicBool::new(false)),
             manual_output_state: Arc::new(AtomicBool::new(false)),
+            current_run: Arc::new(AtomicI32::new(0)),
+            total_runs: Arc::new(AtomicI32::new(1)),
         }
     }
 
@@ -118,6 +124,7 @@ impl RotaryEncoderState {
             StepMode::Full => 1.0,
             StepMode::Half => 2.0,
         };
+        let number_of_runs = settings.number_of_runs;
         drop(settings);
         
         let mut targets = self.target_angles.lock()
@@ -136,6 +143,10 @@ impl RotaryEncoderState {
         self.encoder_active.store(true, Ordering::SeqCst);
         // Reset angle to 0 when Start button is pressed
         self.set_value(0);
+        // Initialize run counters
+        self.reset_current_run();
+        self.set_total_runs(number_of_runs as i32);
+        self.increment_current_run(); // Start at run 1
     }
 
     pub fn stop(&self) {
@@ -143,6 +154,8 @@ impl RotaryEncoderState {
         self.output_on.store(false, Ordering::SeqCst);
         // Reset angle to 0 when Stop button is pressed
         self.set_value(0);
+        // Reset run counter when stopping
+        self.reset_current_run();
     }
 
     pub fn get_target_angles(&self) -> Vec<f32> {
@@ -240,5 +253,25 @@ impl RotaryEncoderState {
 
     pub fn get_manual_output_state(&self) -> bool {
         self.manual_output_state.load(Ordering::SeqCst)
+    }
+
+    pub fn get_current_run(&self) -> i32 {
+        self.current_run.load(Ordering::SeqCst)
+    }
+
+    pub fn get_total_runs(&self) -> i32 {
+        self.total_runs.load(Ordering::SeqCst)
+    }
+
+    pub fn set_total_runs(&self, runs: i32) {
+        self.total_runs.store(runs, Ordering::SeqCst);
+    }
+
+    pub fn increment_current_run(&self) {
+        self.current_run.fetch_add(1, Ordering::SeqCst);
+    }
+
+    pub fn reset_current_run(&self) {
+        self.current_run.store(0, Ordering::SeqCst);
     }
 }

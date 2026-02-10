@@ -67,6 +67,8 @@ struct StatusResponse {
     current_target_index: usize,
     output_on: bool,
     target_reached: bool,
+    current_run: i32,
+    total_runs: i32,
 }
 
 #[derive(Serialize)]
@@ -247,6 +249,8 @@ pub fn start_webserver(
             current_target_index: encoder_state_status.get_current_target_index(),
             output_on: encoder_state_status.is_output_on(),
             target_reached: encoder_state_status.is_target_reached(),
+            current_run: encoder_state_status.get_current_run(),
+            total_runs: encoder_state_status.get_total_runs(),
         };
 
         let json = serde_json::to_string(&status)

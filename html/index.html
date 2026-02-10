@@ -355,6 +355,12 @@
                     <span id="currentAngle" class="current-angle-value">0.0°</span>
                 </div>
             </div>
+            <div class="status-row">
+                <div class="status-item">
+                    <span class="status-label">Run Progress</span>
+                    <span class="status-value" id="runCounter">0 / 1</span>
+                </div>
+            </div>
         </div>
         
         <div class="input-group">
@@ -475,6 +481,12 @@
                     const currentAngleElem = document.getElementById('currentAngle');
                     if (currentAngleElem && typeof data.angle === 'number') {
                         currentAngleElem.textContent = data.angle.toFixed(1) + '°';
+                    }
+                    
+                    // Update run counter display
+                    const runCounterElem = document.getElementById('runCounter');
+                    if (runCounterElem && data.current_run !== undefined && data.total_runs !== undefined) {
+                        runCounterElem.textContent = data.current_run + ' / ' + data.total_runs;
                     }
                     
                     // Update target status indicators based on current_target_index
