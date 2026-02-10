@@ -320,6 +320,18 @@
         </div>
         
         <div class="settings-section">
+            <h3>Display Configuration</h3>
+            
+            <div class="setting-row">
+                <span class="setting-label">Tick Size Multiplier</span>
+                <div class="setting-control">
+                    <input type="number" id="tickSizeMultiplier" min="0.5" max="5" step="0.5" value="2.0">
+                </div>
+            </div>
+            <div class="help-text">Adjust the size of the checkmark (✓) and cross (✗) symbols on the Home page</div>
+        </div>
+        
+        <div class="settings-section">
             <h3>Output Configuration</h3>
             
             <div class="setting-row">
@@ -450,6 +462,9 @@
                     // Set minimum angle threshold
                     document.getElementById('minAngleThreshold').value = data.minimum_angle_threshold || 2.5;
                     
+                    // Set tick size multiplier
+                    document.getElementById('tickSizeMultiplier').value = data.tick_size_multiplier || 2.0;
+                    
                     // Set output pin
                     document.getElementById('outputPin').value = data.output_pin;
                     
@@ -483,7 +498,8 @@
                 minimum_angle_threshold: parseFloat(document.getElementById('minAngleThreshold').value),
                 hold_output_until_threshold: document.getElementById('holdOutputUntilThreshold').checked,
                 debug_enabled: debugEnabledElem ? debugEnabledElem.checked : false,
-                num_target_angles: parseInt(document.getElementById('numTargetAngles').value)
+                num_target_angles: parseInt(document.getElementById('numTargetAngles').value),
+                tick_size_multiplier: parseFloat(document.getElementById('tickSizeMultiplier').value)
             };
             
             fetch('/api/settings', {

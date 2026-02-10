@@ -19,6 +19,7 @@
             align-items: center;
             justify-content: center;
             padding: 20px;
+            --tick-size-multiplier: 2.0;
         }
         
         .container {
@@ -307,9 +308,9 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 24px;
-            height: 24px;
-            font-size: 14px;
+            width: calc(24px * var(--tick-size-multiplier));
+            height: calc(24px * var(--tick-size-multiplier));
+            font-size: calc(14px * var(--tick-size-multiplier));
             font-weight: bold;
         }
 
@@ -319,7 +320,7 @@
 
         .target-status-indicator.reached {
             color: #28a745;
-            font-size: 16px;
+            font-size: calc(16px * var(--tick-size-multiplier));
         }
 </style>
 </head>
@@ -375,12 +376,17 @@
         let targetEverReached = false;  // Track if target was reached in this session
         let numTargetAngles = 1;  // Default to 1, will be loaded from settings
         
-        // Load settings to determine number of target angles
+        // Load settings to determine number of target angles and tick size
         function loadNumTargetAngles() {
             fetch('/api/settings')
                 .then(response => response.json())
                 .then(data => {
                     numTargetAngles = data.num_target_angles || 1;
+                    
+                    // Apply tick size multiplier
+                    const tickSizeMultiplier = data.tick_size_multiplier || 2.0;
+                    document.body.style.setProperty('--tick-size-multiplier', tickSizeMultiplier);
+                    
                     generateTargetAngleInputs();
                 })
                 .catch(error => {
