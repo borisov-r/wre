@@ -408,6 +408,7 @@
                     
                     // Set up the update interval with the configured rate
                     const updateRateMs = data.update_rate_ms || 200;
+                    updateStatus();  // Initial update
                     if (updateInterval) {
                         clearInterval(updateInterval);
                     }
@@ -418,6 +419,7 @@
                     numTargetAngles = 1;
                     generateTargetAngleInputs();
                     // Fallback to default 200ms on error
+                    updateStatus();  // Initial update
                     if (updateInterval) {
                         clearInterval(updateInterval);
                     }
@@ -628,11 +630,8 @@
         }
         
         // Load number of target angles and generate inputs on page load
+        // Note: This also sets up the status update interval
         loadSettings();
-        
-        // Start polling for status updates
-        // Note: The interval will be set properly after loadSettings completes
-        updateStatus();
         
         // Clean up interval when page is unloaded
         window.addEventListener('beforeunload', function() {

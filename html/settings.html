@@ -492,6 +492,13 @@
                     // Set debug enabled
                     document.getElementById('debugEnabled').checked = data.debug_enabled || false;
                     
+                    // Update the interval with the loaded update rate
+                    const updateRateMs = data.update_rate_ms || 200;
+                    if (updateInterval) {
+                        clearInterval(updateInterval);
+                    }
+                    updateInterval = setInterval(updateStatus, updateRateMs);
+                    
                     console.log('Settings loaded:', data);
                 })
                 .catch(error => {
@@ -565,26 +572,9 @@
         // Load settings on page load
         loadSettings();
         
-        // Start polling for status updates with default rate
-        // Will be updated after settings are loaded
+        // Start polling for status updates
+        // The interval will be set properly after loadSettings completes
         updateStatus();
-        updateInterval = setInterval(updateStatus, 200);
-        
-        // Update the interval after settings are loaded
-        setTimeout(() => {
-            fetch('/api/settings')
-                .then(response => response.json())
-                .then(data => {
-                    const updateRateMs = data.update_rate_ms || 200;
-                    if (updateInterval) {
-                        clearInterval(updateInterval);
-                    }
-                    updateInterval = setInterval(updateStatus, updateRateMs);
-                })
-                .catch(error => {
-                    console.error('Error loading update rate:', error);
-                });
-        }, 100);
         
         // Clean up interval when page is unloaded
         window.addEventListener('beforeunload', function() {
