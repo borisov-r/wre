@@ -171,7 +171,7 @@ impl RotaryEncoderState {
     }
 
     pub fn is_target_reached(&self) -> bool {
-        self.triggered.load(Ordering::SeqCst)
+        self.triggered.load(Ordering::Acquire)
     }
 
     fn bound(&self, value: i32) -> i32 {
