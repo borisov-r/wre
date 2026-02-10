@@ -355,10 +355,15 @@
                     <span id="currentAngle" class="current-angle-value">0.0°</span>
                 </div>
             </div>
-            <div class="status-row">
+            <div class="status-row-combined">
                 <div class="status-item">
                     <span class="status-label">Run Progress</span>
                     <span class="status-value" id="runCounter">0 / 1</span>
+                </div>
+                <div class="status-separator"></div>
+                <div class="status-item">
+                    <span class="status-label">Number of Runs</span>
+                    <input type="number" id="numberOfRuns" min="1" max="100000" value="1" style="width: 80px; padding: 8px 12px; border: 2px solid #e9ecef; border-radius: 8px; font-size: 16px; text-align: center; font-weight: 600;">
                 </div>
             </div>
         </div>
@@ -392,6 +397,12 @@
                     // Apply tick size multiplier
                     const tickSizeMultiplier = data.tick_size_multiplier || 2.0;
                     document.body.style.setProperty('--tick-size-multiplier', tickSizeMultiplier);
+                    
+                    // Load number of runs
+                    const numberOfRunsElem = document.getElementById('numberOfRuns');
+                    if (numberOfRunsElem && data.number_of_runs) {
+                        numberOfRunsElem.value = data.number_of_runs;
+                    }
                     
                     generateTargetAngleInputs();
                 })
@@ -518,6 +529,14 @@
         }
         
         function setAngles() {
+            // Validate and get number of runs first
+            const numberOfRunsInput = document.getElementById('numberOfRuns');
+            const numberOfRuns = parseInt(numberOfRunsInput.value);
+            if (isNaN(numberOfRuns) || numberOfRuns < 1 || numberOfRuns > 100000) {
+                alert('Number of Runs must be between 1 and 100000');
+                return;
+            }
+            
             // Collect all angle values
             const angles = [];
             for (let i = 0; i < numTargetAngles; i++) {
@@ -539,22 +558,43 @@
             // Reset all checkboxes to ✗ when Start is clicked
             resetAllCheckboxes();
             
-            fetch('/api/set', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ angles: angles })
-            })
-            .then(response => response.json())
-            .then(data => {
-                console.log('Angles set successfully:', data);
-                updateStatus();
-            })
-            .catch(error => {
-                console.error('Error setting angles:', error);
-                alert('Error setting angles: ' + error);
-            });
+            // First, update the number of runs setting
+            fetch('/api/settings')
+                .then(response => response.json())
+                .then(currentSettings => {
+                    // Update only the number_of_runs field
+                    currentSettings.number_of_runs = numberOfRuns;
+                    
+                    return fetch('/api/settings', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(currentSettings)
+                    });
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Number of runs updated:', data);
+                    
+                    // Now set the target angles
+                    return fetch('/api/set', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ angles: angles })
+                    });
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Angles set successfully:', data);
+                    updateStatus();
+                })
+                .catch(error => {
+                    console.error('Error setting angles:', error);
+                    alert('Error setting angles: ' + error);
+                });
         }
         
         function stopEncoder() {

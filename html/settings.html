@@ -279,18 +279,6 @@
             </div>
             
             <div class="setting-row">
-                <div style="flex: 1;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                        <span class="setting-label">Number of Runs</span>
-                        <div class="setting-control">
-                            <input type="number" id="numberOfRuns" min="1" max="100000" value="1" style="width: 120px;">
-                        </div>
-                    </div>
-                    <div class="help-text">How many times to repeat all target angles (1-100000)</div>
-                </div>
-            </div>
-            
-            <div class="setting-row">
                 <span class="setting-label">Forward Direction</span>
                 <div class="setting-control">
                     <div class="radio-group">
@@ -457,11 +445,6 @@
                         document.getElementById('numTargetAngles').value = data.num_target_angles;
                     }
                     
-                    // Set number of runs
-                    if (data.number_of_runs) {
-                        document.getElementById('numberOfRuns').value = data.number_of_runs;
-                    }
-                    
                     // Set forward direction
                     if (data.forward_direction === 'Clockwise') {
                         document.getElementById('dirCW').checked = true;
@@ -507,39 +490,45 @@
         
         function saveSettings() {
             const debugEnabledElem = document.getElementById('debugEnabled');
-            const settings = {
-                forward_direction: document.getElementById('dirCW').checked ? 'Clockwise' : 'CounterClockwise',
-                step_mode: document.getElementById('stepFull').checked ? 'Full' : 'Half',
-                output_pin: parseInt(document.getElementById('outputPin').value),
-                output_default_state: document.getElementById('stateLow').checked ? 'Low' : 'High',
-                minimum_angle_threshold: parseFloat(document.getElementById('minAngleThreshold').value),
-                hold_output_until_threshold: document.getElementById('holdOutputUntilThreshold').checked,
-                debug_enabled: debugEnabledElem ? debugEnabledElem.checked : false,
-                num_target_angles: parseInt(document.getElementById('numTargetAngles').value),
-                tick_size_multiplier: parseFloat(document.getElementById('tickSizeMultiplier').value),
-                number_of_runs: parseInt(document.getElementById('numberOfRuns').value)
-            };
             
-            fetch('/api/settings', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(settings)
-            })
-            .then(response => response.json())
-            .then(data => {
-                console.log('Settings saved:', data);
-                if (data.warning) {
-                    alert('Settings applied but WARNING: ' + data.warning + '\nSettings may not persist after restart. Output pin changes require a device restart.');
-                } else {
-                    alert('Settings saved successfully! Note: Output pin changes require a device restart.');
-                }
-            })
-            .catch(error => {
-                console.error('Error saving settings:', error);
-                alert('Error saving settings: ' + error);
-            });
+            // First fetch current settings to preserve number_of_runs
+            fetch('/api/settings')
+                .then(response => response.json())
+                .then(currentSettings => {
+                    const settings = {
+                        forward_direction: document.getElementById('dirCW').checked ? 'Clockwise' : 'CounterClockwise',
+                        step_mode: document.getElementById('stepFull').checked ? 'Full' : 'Half',
+                        output_pin: parseInt(document.getElementById('outputPin').value),
+                        output_default_state: document.getElementById('stateLow').checked ? 'Low' : 'High',
+                        minimum_angle_threshold: parseFloat(document.getElementById('minAngleThreshold').value),
+                        hold_output_until_threshold: document.getElementById('holdOutputUntilThreshold').checked,
+                        debug_enabled: debugEnabledElem ? debugEnabledElem.checked : false,
+                        num_target_angles: parseInt(document.getElementById('numTargetAngles').value),
+                        tick_size_multiplier: parseFloat(document.getElementById('tickSizeMultiplier').value),
+                        number_of_runs: currentSettings.number_of_runs || 1  // Preserve existing value
+                    };
+                    
+                    return fetch('/api/settings', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(settings)
+                    });
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Settings saved:', data);
+                    if (data.warning) {
+                        alert('Settings applied but WARNING: ' + data.warning + '\nSettings may not persist after restart. Output pin changes require a device restart.');
+                    } else {
+                        alert('Settings saved successfully! Note: Output pin changes require a device restart.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error saving settings:', error);
+                    alert('Error saving settings: ' + error);
+                });
         }
         
         function setOutputState(state) {
