@@ -244,7 +244,26 @@
             font-weight: 700;
         }
 
-    </style>
+        .target-status-indicator {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            margin-left: 8px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .target-status-indicator.not-reached {
+            color: #dc3545;
+        }
+
+        .target-status-indicator.reached {
+            color: #28a745;
+            font-size: 16px;
+        }
+</style>
 </head>
 <body>
     <div class="container">
@@ -278,6 +297,7 @@
                 <div class="current-angle-display">
                     <span class="current-angle-label">Current</span>
                     <span id="currentAngle" class="current-angle-value">0.0°</span>
+                    <span id="targetStatusIndicator" class="target-status-indicator not-reached">✗</span>
                 </div>
             </div>
             <div class="help-text">Enter target angle (0-270° in 0.5° increments)</div>
@@ -309,6 +329,20 @@
                     const currentAngleElem = document.getElementById('currentAngle');
                     if (currentAngleElem && typeof data.angle === 'number') {
                         currentAngleElem.textContent = data.angle.toFixed(1) + '°';
+                    }
+                    
+                    // Update target status indicator
+                    const targetStatusIndicator = document.getElementById('targetStatusIndicator');
+                    if (targetStatusIndicator) {
+                        if (data.target_reached) {
+                            targetStatusIndicator.classList.remove('not-reached');
+                            targetStatusIndicator.classList.add('reached');
+                            targetStatusIndicator.textContent = '✓';
+                        } else {
+                            targetStatusIndicator.classList.remove('reached');
+                            targetStatusIndicator.classList.add('not-reached');
+                            targetStatusIndicator.textContent = '✗';
+                        }
                     }
                     
                     // Update connection status

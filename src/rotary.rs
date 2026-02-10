@@ -170,6 +170,10 @@ impl RotaryEncoderState {
         self.debug_mode.load(Ordering::Acquire)
     }
 
+    pub fn is_target_reached(&self) -> bool {
+        self.triggered.load(Ordering::Acquire)
+    }
+
     fn bound(&self, value: i32) -> i32 {
         if value < self.min_val {
             self.min_val

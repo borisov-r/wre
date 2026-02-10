@@ -66,6 +66,7 @@ struct StatusResponse {
     target_angles: Vec<f32>,
     current_target_index: usize,
     output_on: bool,
+    target_reached: bool,
 }
 
 #[derive(Serialize)]
@@ -245,6 +246,7 @@ pub fn start_webserver(
             target_angles: encoder_state_status.get_target_angles(),
             current_target_index: encoder_state_status.get_current_target_index(),
             output_on: encoder_state_status.is_output_on(),
+            target_reached: encoder_state_status.is_target_reached(),
         };
 
         let json = serde_json::to_string(&status)
