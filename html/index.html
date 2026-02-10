@@ -405,11 +405,23 @@
                     }
                     
                     generateTargetAngleInputs();
+                    
+                    // Set up the update interval with the configured rate
+                    const updateRateMs = data.update_rate_ms || 200;
+                    if (updateInterval) {
+                        clearInterval(updateInterval);
+                    }
+                    updateInterval = setInterval(updateStatus, updateRateMs);
                 })
                 .catch(error => {
                     console.error('Error loading settings:', error);
                     numTargetAngles = 1;
                     generateTargetAngleInputs();
+                    // Fallback to default 200ms on error
+                    if (updateInterval) {
+                        clearInterval(updateInterval);
+                    }
+                    updateInterval = setInterval(updateStatus, 200);
                 });
         }
         
@@ -619,8 +631,8 @@
         loadSettings();
         
         // Start polling for status updates
+        // Note: The interval will be set properly after loadSettings completes
         updateStatus();
-        updateInterval = setInterval(updateStatus, 200);
         
         // Clean up interval when page is unloaded
         window.addEventListener('beforeunload', function() {

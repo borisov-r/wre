@@ -329,6 +329,14 @@
                 </div>
             </div>
             <div class="help-text">Adjust the size of the checkmark (✓) and cross (✗) symbols on the Home page</div>
+            
+            <div class="setting-row">
+                <span class="setting-label">Update Rate (ms)</span>
+                <div class="setting-control">
+                    <input type="number" id="updateRateMs" min="1" max="200" step="1" value="200">
+                </div>
+            </div>
+            <div class="help-text">How often the browser updates the target angle display (1-200 milliseconds)</div>
         </div>
         
         <div class="settings-section">
@@ -465,6 +473,9 @@
                     // Set tick size multiplier
                     document.getElementById('tickSizeMultiplier').value = data.tick_size_multiplier || 2.0;
                     
+                    // Set update rate
+                    document.getElementById('updateRateMs').value = data.update_rate_ms || 200;
+                    
                     // Set output pin
                     document.getElementById('outputPin').value = data.output_pin;
                     
@@ -505,6 +516,7 @@
                         debug_enabled: debugEnabledElem ? debugEnabledElem.checked : false,
                         num_target_angles: parseInt(document.getElementById('numTargetAngles').value),
                         tick_size_multiplier: parseFloat(document.getElementById('tickSizeMultiplier').value),
+                        update_rate_ms: parseInt(document.getElementById('updateRateMs').value),
                         number_of_runs: currentSettings.number_of_runs !== undefined ? currentSettings.number_of_runs : 1  // Preserve existing value
                     };
                     
@@ -553,9 +565,26 @@
         // Load settings on page load
         loadSettings();
         
-        // Start polling for status updates
+        // Start polling for status updates with default rate
+        // Will be updated after settings are loaded
         updateStatus();
         updateInterval = setInterval(updateStatus, 200);
+        
+        // Update the interval after settings are loaded
+        setTimeout(() => {
+            fetch('/api/settings')
+                .then(response => response.json())
+                .then(data => {
+                    const updateRateMs = data.update_rate_ms || 200;
+                    if (updateInterval) {
+                        clearInterval(updateInterval);
+                    }
+                    updateInterval = setInterval(updateStatus, updateRateMs);
+                })
+                .catch(error => {
+                    console.error('Error loading update rate:', error);
+                });
+        }, 100);
         
         // Clean up interval when page is unloaded
         window.addEventListener('beforeunload', function() {
