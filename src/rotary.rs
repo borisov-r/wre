@@ -39,7 +39,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             forward_direction: ForwardDirection::Clockwise,
-            step_mode: StepMode::Half,
+            step_mode: StepMode::Full,
             output_pin: 32,
             output_default_state: PinState::Low,
             minimum_angle_threshold: 2.5,
@@ -136,7 +136,7 @@ impl RotaryEncoderState {
         for angle in angles {
             // Clamp angles to valid range [0, 360]
             let clamped_angle = angle.max(0.0).min(360.0);
-            targets.push((clamped_angle * multiplier) as i32);
+            targets.push((clamped_angle * multiplier).round() as i32);
         }
         *self.current_target_index.lock()
             .expect("Current target index mutex poisoned") = 0;
@@ -275,5 +275,157 @@ impl RotaryEncoderState {
 
     pub fn reset_current_run(&self) {
         self.current_run.store(0, Ordering::SeqCst);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_state_with_step_mode(mode: StepMode) -> RotaryEncoderState {
+        let state = RotaryEncoderState::new(0, 720);
+        let mut settings = Settings::default();
+        settings.step_mode = mode;
+        state.set_settings(settings);
+        state
+    }
+
+    // --- StepMode default ---
+
+    #[test]
+    fn default_step_mode_is_full() {
+        let settings = Settings::default();
+        assert_eq!(settings.step_mode, StepMode::Full);
+    }
+
+    // --- set_target_angles: rounding instead of truncation ---
+
+    #[test]
+    fn target_angle_half_degree_full_mode_rounds_to_one_step() {
+        // With Full mode (multiplier=1.0), 0.5° should round to 1 step, not truncate to 0.
+        // Previously `(0.5 * 1.0) as i32 = 0` caused immediate trigger (critical bug).
+        let state = make_state_with_step_mode(StepMode::Full);
+        state.set_target_angles(vec![0.5]);
+        let targets = state.target_angles.lock().unwrap();
+        assert_eq!(targets[0], 1, "0.5° in Full mode must round to 1 step, not truncate to 0");
+    }
+
+    #[test]
+    fn target_angle_zero_not_set_for_half_degree_full_mode() {
+        // Ensure the target is never 0 for a 0.5° input in Full mode (prevents immediate trigger).
+        let state = make_state_with_step_mode(StepMode::Full);
+        state.set_target_angles(vec![0.5]);
+        let targets = state.target_angles.lock().unwrap();
+        assert_ne!(targets[0], 0, "Target of 0 steps would trigger immediately at start");
+    }
+
+    #[test]
+    fn target_angle_one_degree_full_mode_is_one_step() {
+        let state = make_state_with_step_mode(StepMode::Full);
+        state.set_target_angles(vec![1.0]);
+        let targets = state.target_angles.lock().unwrap();
+        assert_eq!(targets[0], 1);
+    }
+
+    #[test]
+    fn target_angle_half_degree_half_mode_is_one_step() {
+        // With Half mode (multiplier=2.0), 0.5° = (0.5 * 2.0).round() = 1 step.
+        let state = make_state_with_step_mode(StepMode::Half);
+        state.set_target_angles(vec![0.5]);
+        let targets = state.target_angles.lock().unwrap();
+        assert_eq!(targets[0], 1);
+    }
+
+    #[test]
+    fn target_angle_one_degree_half_mode_is_two_steps() {
+        let state = make_state_with_step_mode(StepMode::Half);
+        state.set_target_angles(vec![1.0]);
+        let targets = state.target_angles.lock().unwrap();
+        assert_eq!(targets[0], 2);
+    }
+
+    #[test]
+    fn target_angle_45_degrees_full_mode() {
+        let state = make_state_with_step_mode(StepMode::Full);
+        state.set_target_angles(vec![45.0]);
+        let targets = state.target_angles.lock().unwrap();
+        assert_eq!(targets[0], 45);
+    }
+
+    #[test]
+    fn target_angle_45_degrees_half_mode() {
+        let state = make_state_with_step_mode(StepMode::Half);
+        state.set_target_angles(vec![45.0]);
+        let targets = state.target_angles.lock().unwrap();
+        assert_eq!(targets[0], 90);
+    }
+
+    // --- get_angle: correct degree conversion ---
+
+    #[test]
+    fn get_angle_full_mode_one_step_is_one_degree() {
+        let state = make_state_with_step_mode(StepMode::Full);
+        state.set_value(1);
+        assert!((state.get_angle() - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn get_angle_half_mode_two_steps_is_one_degree() {
+        let state = make_state_with_step_mode(StepMode::Half);
+        state.set_value(2);
+        assert!((state.get_angle() - 1.0).abs() < 1e-6);
+    }
+
+    // --- get_target_angles: round-trip conversion ---
+
+    #[test]
+    fn get_target_angles_round_trip_full_mode() {
+        let state = make_state_with_step_mode(StepMode::Full);
+        state.set_target_angles(vec![45.0, 90.0, 180.0]);
+        let retrieved = state.get_target_angles();
+        assert_eq!(retrieved, vec![45.0, 90.0, 180.0]);
+    }
+
+    #[test]
+    fn get_target_angles_round_trip_half_mode() {
+        let state = make_state_with_step_mode(StepMode::Half);
+        state.set_target_angles(vec![45.0, 90.0]);
+        let retrieved = state.get_target_angles();
+        assert_eq!(retrieved, vec![45.0, 90.0]);
+    }
+
+    // --- angle clamping ---
+
+    #[test]
+    fn target_angle_negative_clamped_to_zero() {
+        let state = make_state_with_step_mode(StepMode::Full);
+        state.set_target_angles(vec![-10.0]);
+        let targets = state.target_angles.lock().unwrap();
+        assert_eq!(targets[0], 0);
+    }
+
+    #[test]
+    fn target_angle_above_360_clamped_to_360() {
+        let state = make_state_with_step_mode(StepMode::Full);
+        state.set_target_angles(vec![400.0]);
+        let targets = state.target_angles.lock().unwrap();
+        assert_eq!(targets[0], 360);
+    }
+
+    // --- update_from_direction ---
+
+    #[test]
+    fn update_from_direction_clockwise_increments() {
+        let state = RotaryEncoderState::new(0, 720);
+        state.update_from_direction(1);
+        assert_eq!(state.get_value(), 1);
+    }
+
+    #[test]
+    fn update_from_direction_anticlockwise_decrements_clamped_at_min() {
+        let state = RotaryEncoderState::new(0, 720);
+        state.update_from_direction(-1);
+        // Clamped at min_val=0
+        assert_eq!(state.get_value(), 0);
     }
 }
