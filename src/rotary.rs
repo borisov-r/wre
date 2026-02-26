@@ -158,6 +158,8 @@ impl RotaryEncoderState {
         self.set_value(0);
         // Reset run counter when stopping
         self.reset_current_run();
+        // Stop has highest priority - clear any manual output override
+        self.clear_manual_output();
     }
 
     pub fn get_target_angles(&self) -> Vec<f32> {
@@ -427,5 +429,48 @@ mod tests {
         state.update_from_direction(-1);
         // Clamped at min_val=0
         assert_eq!(state.get_value(), 0);
+    }
+
+    // --- stop: highest priority ---
+
+    #[test]
+    fn stop_deactivates_output() {
+        let state = RotaryEncoderState::new(0, 720);
+        state.output_on.store(true, Ordering::SeqCst);
+        state.stop();
+        assert!(!state.is_output_on(), "stop() must deactivate the output (set output_on to false)");
+    }
+
+    #[test]
+    fn stop_clears_manual_output_override() {
+        let state = RotaryEncoderState::new(0, 720);
+        state.set_manual_output(true);
+        assert!(state.is_manual_output_override());
+        state.stop();
+        assert!(
+            !state.is_manual_output_override(),
+            "stop() must clear manual output override (Stop has highest priority)"
+        );
+    }
+
+    #[test]
+    fn stop_clears_manual_output_override_when_output_off() {
+        let state = RotaryEncoderState::new(0, 720);
+        state.set_manual_output(false);
+        assert!(state.is_manual_output_override());
+        state.stop();
+        assert!(
+            !state.is_manual_output_override(),
+            "stop() must clear manual output override regardless of manual state"
+        );
+    }
+
+    #[test]
+    fn stop_deactivates_encoder() {
+        let state = RotaryEncoderState::new(0, 720);
+        state.set_target_angles(vec![45.0]);
+        assert!(state.is_active());
+        state.stop();
+        assert!(!state.is_active(), "stop() must deactivate the encoder");
     }
 }

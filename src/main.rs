@@ -253,6 +253,10 @@ fn rotary_task(
                     output.set_low()?;
                 }
                 encoder_state.output_on.store(manual_state, std::sync::atomic::Ordering::SeqCst);
+            } else {
+                // Encoder not active and no manual override - ensure output pin is off
+                output.set_low()?;
+                encoder_state.output_on.store(false, std::sync::atomic::Ordering::SeqCst);
             }
         }
         
