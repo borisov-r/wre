@@ -21,7 +21,7 @@ fn main() -> anyhow::Result<()> {
 
     let peripherals = Peripherals::take()?;
 
-    // Create rotary encoder state (0-720 half-steps = 0-360 degrees)
+    // Create rotary encoder state (0-720 steps, supports both Full (1°/step) and Half (0.5°/step) modes)
     let encoder_state = RotaryEncoderState::new(0, 720);
     let encoder_state_clone = encoder_state.clone();
     let encoder_state_web = encoder_state.clone();
