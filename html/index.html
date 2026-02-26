@@ -386,6 +386,7 @@
         let updateInterval;
         let targetEverReached = false;  // Track if target was reached in this session
         let numTargetAngles = 1;  // Default to 1, will be loaded from settings
+        let lastKnownRun = 0;  // Track current run to detect run transitions
         
         // Helper function to set up status updates with the specified interval
         function setupStatusUpdates(intervalMs) {
@@ -449,6 +450,7 @@
                 input.max = '270';
                 input.step = '0.5';
                 input.value = i === 0 ? '45' : '0';
+                input.addEventListener('click', function() { this.select(); });
                 
                 const statusIndicator = document.createElement('span');
                 statusIndicator.id = `targetStatus${i}`;
@@ -518,6 +520,12 @@
                     // Update target status indicators based on current_target_index
                     if (data.active && data.current_target_index !== undefined) {
                         const currentIndex = data.current_target_index;
+                        
+                        // Reset checkboxes when a new run starts
+                        if (data.current_run !== undefined && data.current_run !== lastKnownRun) {
+                            resetAllCheckboxes();
+                            lastKnownRun = data.current_run;
+                        }
                         
                         // Mark all targets before current as reached
                         for (let i = 0; i < currentIndex && i < numTargetAngles; i++) {
