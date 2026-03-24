@@ -384,9 +384,9 @@
     
     <script>
         let updateInterval;
-        let targetEverReached = false;  // Track if target was reached in this session
         let numTargetAngles = 1;  // Default to 1, will be loaded from settings
         let lastKnownRun = 0;  // Track current run to detect run transitions
+        let lastTargetReached = false;  // Track V→X transition (target reached → back to 0)
         
         // Helper function to set up status updates with the specified interval
         function setupStatusUpdates(intervalMs) {
@@ -505,10 +505,20 @@
                         outputIndicator.classList.remove('on');
                     }
                     
-                    // Update current angle display
+                    // Update current angle display - show final target angle only when reached,
+                    // not the real-time angle
                     const currentAngleElem = document.getElementById('currentAngle');
-                    if (currentAngleElem && typeof data.angle === 'number') {
-                        currentAngleElem.textContent = data.angle.toFixed(1) + '°';
+                    if (currentAngleElem) {
+                        if (data.target_reached && data.target_angles &&
+                                typeof data.current_target_index === 'number' &&
+                                data.current_target_index >= 0 &&
+                                data.current_target_index < data.target_angles.length) {
+                            // Show the final (target) angle when it has been reached
+                            currentAngleElem.textContent = data.target_angles[data.current_target_index].toFixed(1) + '°';
+                        } else {
+                            // Show 0.0° when not at target (initial state or returned to 0)
+                            currentAngleElem.textContent = '0.0°';
+                        }
                     }
                     
                     // Update run counter display
@@ -517,9 +527,14 @@
                         runCounterElem.textContent = data.current_run + ' / ' + data.total_runs;
                     }
                     
-                    // Update target status indicators based on current_target_index
+                    // Update target status indicators (X→V when final angle reached, V→X when back to 0)
                     if (data.active && data.current_target_index !== undefined) {
                         const currentIndex = data.current_target_index;
+                        
+                        // V→X transition: when the encoder returns to 0 after reaching the target
+                        if (lastTargetReached && !data.target_reached) {
+                            resetAllCheckboxes();
+                        }
                         
                         // Reset checkboxes when a new run starts
                         if (data.current_run !== undefined && data.current_run !== lastKnownRun) {
@@ -527,16 +542,12 @@
                             lastKnownRun = data.current_run;
                         }
                         
-                        // Mark all targets before current as reached
-                        for (let i = 0; i < currentIndex && i < numTargetAngles; i++) {
-                            setCheckboxReached(i);
-                        }
-                        
-                        // If target_reached is true, mark the current target as reached
+                        // X→V: mark current target as reached when final angle is reached
                         if (data.target_reached && currentIndex < numTargetAngles) {
                             setCheckboxReached(currentIndex);
                         }
                     }
+                    lastTargetReached = data.target_reached || false;
                     
                     // Update connection status
                     const statusElem = document.getElementById('connectionStatus');
@@ -580,6 +591,7 @@
             
             // Reset all checkboxes to ✗ when Start is clicked
             resetAllCheckboxes();
+            lastTargetReached = false;
             
             // First, update the number of runs setting
             fetch('/api/settings')
@@ -623,6 +635,7 @@
         function stopEncoder() {
             // Reset all checkboxes to ✗ when Stop is clicked
             resetAllCheckboxes();
+            lastTargetReached = false;
             
             fetch('/api/stop', {
                 method: 'POST'

@@ -7,9 +7,9 @@ use esp_idf_hal::task::thread::ThreadSpawnConfiguration;
 use esp_idf_sys as _;
 use log::*;
 use rotary::RotaryEncoderState;
-use rotary_encoder_embedded::{standard::StandardMode, Direction};
+use rotary_encoder_embedded::{angular_velocity::AngularVelocityMode, Direction};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 fn main() -> anyhow::Result<()> {
     // Initialize ESP-IDF services
@@ -98,12 +98,16 @@ fn rotary_task(
     let mut output = PinDriver::output(output_pin)?;
     output.set_low()?;
 
-    // Initialize the rotary encoder using the library's StandardMode
-    // This mode is suitable for standard rotary encoders with detents
-    let mut rotary_encoder = StandardMode::new();
+    // Initialize the rotary encoder using the library's AngularVelocityMode
+    // This mode uses time-based velocity tracking for more accurate direction detection,
+    // reducing the ±1° error observed with StandardMode when bending metal.
+    let mut rotary_encoder = AngularVelocityMode::new();
     
-    info!("✓ Using rotary-encoder-embedded library with StandardMode");
+    info!("✓ Using rotary-encoder-embedded library with AngularVelocityMode");
     info!("✓ Polling mode: Checking encoder state every 1ms (~1000Hz)");
+
+    // Record start time for velocity timestamping (AngularVelocityMode requires ms timestamps)
+    let start_time = Instant::now();
 
     // Main rotary encoder loop with polling
     loop {
@@ -112,8 +116,11 @@ fn rotary_task(
         let clk_state = clk.is_high();
         let dt_state = dt.is_high();
         
+        // Get elapsed time in milliseconds for AngularVelocityMode
+        let current_time_millis = start_time.elapsed().as_millis() as u64;
+        
         // Update the encoder and get direction
-        let direction = rotary_encoder.update(dt_state, clk_state);
+        let direction = rotary_encoder.update(dt_state, clk_state, current_time_millis);
         
         // Process direction changes
         match direction {
