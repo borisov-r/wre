@@ -84,11 +84,14 @@ struct ManualOutputRequest {
 }
 
 const SETTINGS_NVS_KEY: &str = "encoder_cfg";
+// Buffer must be large enough for the worst-case serialized Settings JSON.
+// Worst-case compact JSON is ~303 bytes (e.g., "CounterClockwise" + u32::MAX values).
+const SETTINGS_NVS_BUF_SIZE: usize = 512;
 
 fn load_settings_from_nvs(nvs_partition: &EspDefaultNvsPartition) -> Option<Settings> {
     match esp_idf_svc::nvs::EspNvs::new(nvs_partition.clone(), "storage", true) {
         Ok(nvs) => {
-            let mut buf = [0u8; 256];
+            let mut buf = [0u8; SETTINGS_NVS_BUF_SIZE];
             match nvs.get_raw(SETTINGS_NVS_KEY, &mut buf) {
                 Ok(Some(data)) => {
                     match serde_json::from_slice::<Settings>(data) {
