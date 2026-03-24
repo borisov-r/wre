@@ -70,6 +70,7 @@ pub struct RotaryEncoderState {
     pub manual_output_state: Arc<AtomicBool>,
     pub current_run: Arc<AtomicI32>,
     pub total_runs: Arc<AtomicI32>,
+    pub safe_stop_active: Arc<AtomicBool>,
 }
 
 impl RotaryEncoderState {
@@ -90,6 +91,7 @@ impl RotaryEncoderState {
             manual_output_state: Arc::new(AtomicBool::new(false)),
             current_run: Arc::new(AtomicI32::new(0)),
             total_runs: Arc::new(AtomicI32::new(1)),
+            safe_stop_active: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -143,6 +145,8 @@ impl RotaryEncoderState {
         self.triggered.store(false, Ordering::SeqCst);
         self.reset_detected.store(false, Ordering::SeqCst);
         self.encoder_active.store(true, Ordering::SeqCst);
+        // Cancel any in-progress safe stop when Start is pressed
+        self.safe_stop_active.store(false, Ordering::SeqCst);
         // Reset angle to 0 when Start button is pressed
         self.set_value(0);
         // Initialize run counters
@@ -153,13 +157,30 @@ impl RotaryEncoderState {
 
     pub fn stop(&self) {
         self.encoder_active.store(false, Ordering::SeqCst);
-        self.output_on.store(false, Ordering::SeqCst);
-        // Reset angle to 0 when Stop button is pressed
-        self.set_value(0);
-        // Reset run counter when stopping
+        // Reset triggered/reset state from any previous run
+        self.triggered.store(false, Ordering::SeqCst);
+        self.reset_detected.store(false, Ordering::SeqCst);
+        // Reset run counter
         self.reset_current_run();
         // Stop has highest priority - clear any manual output override
         self.clear_manual_output();
+        // Initiate safe stop: the main loop will turn the output pin ON to trigger
+        // the machine to reverse direction.  When the angle drops below the
+        // minimum_angle_threshold the main loop will turn the output pin OFF and
+        // call complete_safe_stop() to finish the operation.
+        self.safe_stop_active.store(true, Ordering::SeqCst);
+        // Note: the angle value is intentionally NOT reset here so the main loop
+        // can monitor it while safe stop is in progress.
+    }
+
+    pub fn is_safe_stop_active(&self) -> bool {
+        self.safe_stop_active.load(Ordering::SeqCst)
+    }
+
+    pub fn complete_safe_stop(&self) {
+        self.safe_stop_active.store(false, Ordering::SeqCst);
+        // Now that the machine has returned to the safe position, reset the angle
+        self.set_value(0);
     }
 
     pub fn get_target_angles(&self) -> Vec<f32> {
@@ -434,11 +455,38 @@ mod tests {
     // --- stop: highest priority ---
 
     #[test]
-    fn stop_deactivates_output() {
+    fn stop_initiates_safe_stop() {
         let state = RotaryEncoderState::new(0, 720);
-        state.output_on.store(true, Ordering::SeqCst);
+        state.set_value(100); // non-zero angle
         state.stop();
-        assert!(!state.is_output_on(), "stop() must deactivate the output (set output_on to false)");
+        assert!(
+            state.is_safe_stop_active(),
+            "stop() must activate safe stop mode so the output pin turns ON to trigger machine reversal"
+        );
+        assert!(!state.is_active(), "stop() must deactivate the encoder");
+        assert!(!state.is_manual_output_override(), "stop() must clear manual output override");
+        assert_eq!(state.get_current_run(), 0, "stop() must reset the run counter");
+    }
+
+    #[test]
+    fn stop_preserves_angle_for_safe_stop_monitoring() {
+        let state = RotaryEncoderState::new(0, 720);
+        state.set_value(200);
+        state.stop();
+        assert_eq!(
+            state.get_value(),
+            200,
+            "stop() must NOT reset the angle - the main loop needs it to monitor safe stop progress"
+        );
+    }
+
+    #[test]
+    fn stop_deactivates_encoder() {
+        let state = RotaryEncoderState::new(0, 720);
+        state.set_target_angles(vec![45.0]);
+        assert!(state.is_active());
+        state.stop();
+        assert!(!state.is_active(), "stop() must deactivate the encoder");
     }
 
     #[test]
@@ -466,11 +514,27 @@ mod tests {
     }
 
     #[test]
-    fn stop_deactivates_encoder() {
+    fn complete_safe_stop_clears_safe_stop_flag() {
         let state = RotaryEncoderState::new(0, 720);
-        state.set_target_angles(vec![45.0]);
-        assert!(state.is_active());
+        state.stop(); // activates safe stop
+        assert!(state.is_safe_stop_active());
+        state.complete_safe_stop();
+        assert!(
+            !state.is_safe_stop_active(),
+            "complete_safe_stop() must clear the safe_stop_active flag"
+        );
+    }
+
+    #[test]
+    fn complete_safe_stop_resets_angle_to_zero() {
+        let state = RotaryEncoderState::new(0, 720);
+        state.set_value(200);
         state.stop();
-        assert!(!state.is_active(), "stop() must deactivate the encoder");
+        state.complete_safe_stop();
+        assert_eq!(
+            state.get_value(),
+            0,
+            "complete_safe_stop() must reset the angle to 0"
+        );
     }
 }

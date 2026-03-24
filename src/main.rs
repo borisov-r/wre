@@ -135,8 +135,22 @@ fn rotary_task(
             }
         }
         
-        // Handle target angle logic
-        if encoder_state.is_active() {
+        // Handle target angle logic - safe stop has the highest priority
+        if encoder_state.is_safe_stop_active() {
+            let angle = encoder_state.get_angle();
+            let settings = encoder_state.get_settings();
+            if angle < settings.minimum_angle_threshold {
+                // Angle has dropped below the minimum threshold - safe stop complete
+                output.set_low()?;
+                encoder_state.output_on.store(false, std::sync::atomic::Ordering::SeqCst);
+                encoder_state.complete_safe_stop();
+                info!("✅ Safe stop complete - output OFF, angle reset to 0°");
+            } else {
+                // Keep output ON to trigger machine reversal
+                output.set_high()?;
+                encoder_state.output_on.store(true, std::sync::atomic::Ordering::SeqCst);
+            }
+        } else if encoder_state.is_active() {
             let targets = encoder_state.target_angles.lock()
                 .expect("Target angles mutex poisoned");
             
@@ -232,10 +246,9 @@ fn rotary_task(
                                     .expect("Current target index mutex poisoned") = 0;
                                 info!("🔄 Starting run {}/{}...", encoder_state.get_current_run(), total_runs);
                             } else {
-                                // All runs completed
+                                // All runs completed - initiate safe stop
                                 info!("✅ All {} runs completed!", total_runs);
                                 encoder_state.stop();
-                                output.set_low()?;
                             }
                         }
                         drop(targets);
